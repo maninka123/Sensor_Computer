@@ -18,6 +18,9 @@ public:
     pnh.param<std::string>("output_topic", output_topic_, "/livox/lidar_merged");
     pnh.param<int>("queue_size", queue_size_, 10);
     pnh.param<int>("consecutive_count", consecutive_count_, 2);
+    // overlapping_merge: true = sliding window (same frame reused), false = non-overlapping batches
+    pnh.param<bool>("overlapping_merge", overlapping_merge_, false);
+    pnh.param<bool>("verbose", verbose_, false);
     if (consecutive_count_ < 1)
     {
       consecutive_count_ = 1;
@@ -27,13 +30,17 @@ public:
     sub_ = nh.subscribe(input_topic_, queue_size_, &PointCloudMerger::callback, this);
 
     ROS_INFO_STREAM("Merging " << consecutive_count_ << " consecutive clouds from "
-                    << input_topic_ << " -> " << output_topic_);
+                    << input_topic_ << " -> " << output_topic_
+                    << " | overlapping=" << (overlapping_merge_ ? "true" : "false")
+                    << " | verbose=" << (verbose_ ? "true" : "false"));
   }
 
 private:
   void callback(const sensor_msgs::PointCloud2ConstPtr& msg)
   {
     buffer_.push_back(*msg);
+    
+    // Keep buffer size limited
     while (static_cast<int>(buffer_.size()) > consecutive_count_)
     {
       buffer_.pop_front();
@@ -51,6 +58,13 @@ private:
     }
 
     pub_.publish(merged_ros);
+
+    // If non-overlapping mode, clear the buffer after publishing
+    // so each frame is only used once
+    if (!overlapping_merge_)
+    {
+      buffer_.clear();
+    }
   }
 
   bool mergeBuffer(sensor_msgs::PointCloud2& out)
@@ -73,7 +87,7 @@ private:
       }
       else
       {
-        pcl::concatenatePointCloud(accumulated, pcl_cloud, accumulated);
+        pcl::concatenate(accumulated, pcl_cloud, accumulated);
       }
     }
 
@@ -88,6 +102,8 @@ private:
   std::string output_topic_;
   int queue_size_{10};
   int consecutive_count_{2};
+  bool overlapping_merge_{false};  // true = sliding window, false = non-overlapping batches
+  bool verbose_{false};
 
   ros::Subscriber sub_;
   ros::Publisher pub_;

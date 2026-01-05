@@ -30,6 +30,7 @@ public:
     pnh.param<std::string>("image_enchantment_topic", image_enchantment_topic_, std::string(""));
     pnh.param<double>("sync_tolerance", sync_tolerance_, 0.05);
     pnh.param<int>("queue_size", queue_size_, 10);
+    pnh.param<bool>("verbose", verbose_, false);
 
     loadCameraParams(pnh);
 
@@ -109,7 +110,10 @@ private:
     double dt = fabs((msg->header.stamp - last_image_->header.stamp).toSec());
     if (dt > sync_tolerance_)
     {
-      ROS_WARN_STREAM_THROTTLE(2.0, "Skipping cloud: no image within sync tolerance (dt=" << dt << "s)");
+      if (verbose_)
+      {
+        ROS_WARN_STREAM_THROTTLE(2.0, "Skipping cloud: no image within sync tolerance (dt=" << dt << "s)");
+      }
       return;
     }
 
@@ -117,9 +121,12 @@ private:
     if (colorize(*msg, last_image_, colored))
     {
       pub_.publish(colored);
-      ROS_INFO_STREAM_THROTTLE(2.0, "Published colorized cloud from cloud stamp "
-                                << msg->header.stamp << " and image stamp "
-                                << last_image_->header.stamp);
+      if (verbose_)
+      {
+        ROS_INFO_STREAM_THROTTLE(2.0, "Published colorized cloud from cloud stamp "
+                                  << msg->header.stamp << " and image stamp "
+                                  << last_image_->header.stamp);
+      }
     }
   }
 
@@ -234,6 +241,7 @@ private:
   int image_enchantment_{0};
   double sync_tolerance_{0.05};
   int queue_size_{10};
+  bool verbose_{false};
 
   cv::Mat camera_matrix_;
   cv::Mat dist_coeffs_;

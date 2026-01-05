@@ -138,6 +138,7 @@ target_link_libraries(pointcloud_colorize_node ${catkin_LIBRARIES} ${OpenCV_LIBR
 
 catkin_install_python(PROGRAMS
   scripts/image_enhancer.py
+  scripts/monitor_status.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

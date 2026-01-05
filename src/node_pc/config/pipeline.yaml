@@ -1,13 +1,28 @@
 lidar_timestamp_shift:
   input_topic: "/livox/lidar"
   output_topic: "/livox/lidar_shifted"
-  offset_seconds: 32.43
+  # timestamp_offset: Converts LiDAR device-relative time to Unix/sim time
+  # Calculated from rosbag analysis (sim_time - header.stamp)
+  # Mean: 1739263380.384177 sec, Std: 0.000501 sec
+  timestamp_offset: 1739263380.384177
+  # capture_offset: Compensates for sensor capture delay difference between LiDAR and Camera
+  # This ensures both sensors capture the same environmental event at the same timestamp
+  capture_offset: 0.03243 #ms
+  verbose: false  # Set to true to show timestamp shift details
 
 pointcloud_merger:
   input_topic: "/livox/lidar_shifted"
   merged_topic: "/livox/lidar_merged"
   queue_size: 10
   consecutive_count: 2
+  # overlapping_merge: If true, uses sliding window (frame reused in multiple outputs)
+  #                    If false, each frame is used only once (non-overlapping batches)
+  overlapping_merge: false
+  verbose: false  # Set to true to show merge details
+
+# Monitor status sync tolerance for LiDAR vs Camera timestamp comparison
+monitor_status:
+  sync_tolerance: 0.1  # seconds - threshold to consider timestamps as synced
 
 image_enhancer:
   enabled: 0
@@ -24,6 +39,7 @@ pointcloud_colorizer:
   image_enchantment: 0  # 0=off, 1=use enhanced image if available
   queue_size: 10
   sync_tolerance: 0.05  # seconds
+  verbose: false  # Set to true to show detailed publish/skip messages
   camera_matrix: [[224.514866, 0.0, 243.278429],
                   [0.0, 224.340765, 181.763517],
                   [0.0, 0.0, 1.0]]
