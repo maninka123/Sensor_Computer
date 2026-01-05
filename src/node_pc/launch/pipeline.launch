@@ -1,0 +1,19 @@
+<launch>
+  <arg name="rosbag" default="true" />
+
+  <!-- Optional hardware bringup when not playing rosbag -->
+  <include file="$(find livox_ros_driver)/launch/livox_lidar.launch" unless="$(arg rosbag)" />
+  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" unless="$(arg rosbag)" />
+
+  <!-- Shift -> merge -> colorize (from existing time_shift.launch) -->
+  <include file="$(find node_pc)/launch/time_shift.launch" />
+
+  <!-- TF web republisher for rosbridge clients -->
+  <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" output="screen" />
+
+  <!-- IMU complementary filter -->
+  <include file="$(find node_pc)/launch/imu_filter.launch" />
+
+  <!-- Rosbridge server -->
+  <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_websocket" output="screen" />
+</launch>

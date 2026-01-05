@@ -1,0 +1,32 @@
+lidar_timestamp_shift:
+  input_topic: "/Livox/lidar"
+  output_topic: "/Livox/lidar_shifted"
+  offset_seconds: 32.43
+
+pointcloud_merger:
+  input_topic: "/Livox/lidar_shifted"
+  merged_topic: "/Livox/lidar_merged"
+  queue_size: 10
+  consecutive_count: 2
+
+image_enhancer:
+  enabled: 0
+  input_topic: "/camera/image_raw"
+  output_topic: "/camera/image_enhanced"
+  queue_size: 5
+
+pointcloud_colorizer:
+  input_topic: "/Livox/lidar_merged"
+  output_topic: "/Livox/lidar_colorized"
+  image_topic: "/camera/image_raw"
+  enhanced_image_topic: "/camera/image_enhanced"
+  image_enchantment_topic: ""   # optional topic (std_msgs/Bool) to toggle enhancement
+  image_enchantment: 0  # 0=off, 1=use enhanced image if available
+  queue_size: 10
+  sync_tolerance: 0.05  # seconds
+  camera_matrix: [[224.514866, 0.0, 243.278429],
+                  [0.0, 224.340765, 181.763517],
+                  [0.0, 0.0, 1.0]]
+  dist_coeffs: [-0.212691, 0.087036, 0.0, 0.0, 0.0]
+  image_width: 484
+  image_height: 366

@@ -1,0 +1,12 @@
+<launch>
+  <!-- Load parameters for both nodes from one config file -->
+  <rosparam file="$(find node_pc)/config/pipeline.yaml" command="load" />
+
+  <node pkg="node_pc" type="lidar_timestamp_shift_node" name="lidar_timestamp_shift" output="screen" />
+
+  <node pkg="node_pc" type="pointcloud_merge_node" name="pointcloud_merger" output="screen" />
+
+  <node pkg="node_pc" type="image_enhancer.py" name="image_enhancer" output="screen" />
+
+  <node pkg="node_pc" type="pointcloud_colorize_node" name="pointcloud_colorizer" output="screen" />
+</launch>

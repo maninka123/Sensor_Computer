@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Node for the Madgwick filter -->
+  <node name="complementary_filter_gain_node" pkg="imu_complementary_filter" type="complementary_filter_node" output="screen">
+      <param name="do_bias_estimation" value="true"/>
+      <param name="bias_alpha" value="0.05"/>
+    	<param name="do_adaptive_gain" value="false"/>
+        <param name="use_mag" value="false"/>
+        <remap from="imu/data_raw" to="livox/imu"/>
+        
+          </node>
+
+</launch>
+
