@@ -44,6 +44,12 @@ public:
       enchant_sub_ = nh.subscribe(image_enchantment_topic_, 1, &PointCloudColorizer::enchantCallback, this);
     }
 
+    ROS_INFO_STREAM("Colorizer: cloud=" << input_topic_
+                    << " image=" << chosen_image_topic
+                    << " output=" << output_topic_
+                    << " sync_tol=" << sync_tolerance_
+                    << " enhancement_param=" << image_enchantment_);
+
     ROS_INFO_STREAM("Colorizing " << input_topic_ << " -> " << output_topic_
                     << " using images " << chosen_image_topic
                     << " (sync tolerance " << sync_tolerance_ << " s)"
@@ -80,6 +86,7 @@ private:
   void enchantCallback(const std_msgs::BoolConstPtr& msg)
   {
     image_enchantment_ = msg->data ? 1 : 0;
+    ROS_INFO_STREAM("Image enhancement toggle received: " << (image_enchantment_ ? "ON" : "OFF"));
   }
 
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
@@ -91,6 +98,7 @@ private:
     double dt = fabs((msg->header.stamp - last_image_->header.stamp).toSec());
     if (dt > sync_tolerance_)
     {
+      ROS_WARN_STREAM_THROTTLE(2.0, "Skipping cloud: no image within sync tolerance (dt=" << dt << "s)");
       return;
     }
 
@@ -98,6 +106,9 @@ private:
     if (colorize(*msg, last_image_, colored))
     {
       pub_.publish(colored);
+      ROS_INFO_STREAM_THROTTLE(2.0, "Published colorized cloud from cloud stamp "
+                                << msg->header.stamp << " and image stamp "
+                                << last_image_->header.stamp);
     }
   }
 
