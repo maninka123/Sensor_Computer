@@ -14,8 +14,8 @@ class PointCloudMerger
 public:
   PointCloudMerger(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   {
-    pnh.param<std::string>("input_topic", input_topic_, "/Livox/lidar_shifted");
-    pnh.param<std::string>("output_topic", output_topic_, "/Livox/lidar_merged");
+    pnh.param<std::string>("input_topic", input_topic_, "/livox/lidar_shifted");
+    pnh.param<std::string>("output_topic", output_topic_, "/livox/lidar_merged");
     pnh.param<int>("queue_size", queue_size_, 10);
     pnh.param<int>("consecutive_count", consecutive_count_, 2);
     if (consecutive_count_ < 1)

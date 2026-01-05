@@ -1,11 +1,11 @@
 lidar_timestamp_shift:
-  input_topic: "/Livox/lidar"
-  output_topic: "/Livox/lidar_shifted"
+  input_topic: "/livox/lidar"
+  output_topic: "/livox/lidar_shifted"
   offset_seconds: 32.43
 
 pointcloud_merger:
-  input_topic: "/Livox/lidar_shifted"
-  merged_topic: "/Livox/lidar_merged"
+  input_topic: "/livox/lidar_shifted"
+  merged_topic: "/livox/lidar_merged"
   queue_size: 10
   consecutive_count: 2
 
@@ -16,7 +16,7 @@ image_enhancer:
   queue_size: 5
 
 pointcloud_colorizer:
-  input_topic: "/Livox/lidar_merged"
+  input_topic: "/livox/lidar_merged"
   output_topic: "/merged_colored_cloud"
   image_topic: "/camera/image_raw"
   enhanced_image_topic: "/camera/image_enhanced"

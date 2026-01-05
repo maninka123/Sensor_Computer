@@ -1,6 +1,6 @@
 /*
  * ROS node that shifts lidar PointCloud2 timestamps by a configurable offset.
- * Defaults: input /Livox/lidar, output /Livox/lidar_shifted, offset 32.43 seconds.
+ * Defaults: input /livox/lidar, output /livox/lidar_shifted, offset 32.43 seconds.
  */
 
 #include <ros/ros.h>
@@ -11,8 +11,8 @@ class LidarTimestampShift
 public:
   LidarTimestampShift(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   {
-    pnh.param<std::string>("input_topic", input_topic_, "/Livox/lidar");
-    pnh.param<std::string>("output_topic", output_topic_, "/Livox/lidar_shifted");
+    pnh.param<std::string>("input_topic", input_topic_, "/livox/lidar");
+    pnh.param<std::string>("output_topic", output_topic_, "/livox/lidar_shifted");
     pnh.param<double>("offset_seconds", offset_seconds_, 32.43);
 
     pub_ = nh.advertise<sensor_msgs::PointCloud2>(output_topic_, 10);
