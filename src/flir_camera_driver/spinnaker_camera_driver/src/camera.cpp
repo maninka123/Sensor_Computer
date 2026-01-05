@@ -42,8 +42,6 @@ void Camera::init()
     throw std::runtime_error("[Camera::init] Unable to read WidthMax");
   }
   width_max_ = width_max_ptr->GetValue();
-  
-  
   // Set Throughput to maximum
   //=====================================
   setMaxInt(node_map_, "DeviceLinkThroughputLimit");

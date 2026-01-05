@@ -434,8 +434,6 @@ private:
   void devicePoll()
   {
     ROS_INFO_ONCE("devicePoll");
-    ROS_INFO("SpinnakerCameraNodelet: onInit() executing with updated GigE parameters.");
-    ROS_INFO("Using packet_size: %d, auto_packet_size: %d, packet_delay: %d", packet_size_, auto_packet_size_, packet_delay_);
 
     enum State
     {
@@ -526,7 +524,7 @@ private:
             try
             {
               double timeout;
-              getMTPrivateNodeHandle().param("timeout", timeout, 2.0);
+              getMTPrivateNodeHandle().param("timeout", timeout, 1.0);
 
               NODELET_DEBUG_ONCE("Setting timeout to: %f.", timeout);
               spinnaker_.setTimeout(timeout);
@@ -721,8 +719,6 @@ private:
   int packet_size_;
   /// GigE packet delay:
   int packet_delay_;
-
- 
 
   /// Configuration:
   spinnaker_camera_driver::SpinnakerConfig config_;

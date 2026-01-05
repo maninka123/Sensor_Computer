@@ -17,10 +17,10 @@ image_enhancer:
 
 pointcloud_colorizer:
   input_topic: "/Livox/lidar_merged"
-  output_topic: "/Livox/lidar_colorized"
+  output_topic: "/merged_colored_cloud"
   image_topic: "/camera/image_raw"
   enhanced_image_topic: "/camera/image_enhanced"
-  image_enchantment_topic: ""   # optional topic (std_msgs/Bool) to toggle enhancement
+  image_enchantment_topic: "/image_enhancement"   # std_msgs/Bool to toggle enhancement
   image_enchantment: 0  # 0=off, 1=use enhanced image if available
   queue_size: 10
   sync_tolerance: 0.05  # seconds

@@ -23,7 +23,7 @@ public:
   PointCloudColorizer(ros::NodeHandle& nh, ros::NodeHandle& pnh)
   {
     pnh.param<std::string>("input_topic", input_topic_, "/Livox/lidar_merged");
-    pnh.param<std::string>("output_topic", output_topic_, "/Livox/lidar_colorized");
+    pnh.param<std::string>("output_topic", output_topic_, "/merged_colored_cloud");
     pnh.param<std::string>("image_topic", image_topic_, "/camera/image_raw");
     pnh.param<std::string>("enhanced_image_topic", enhanced_image_topic_, "/camera/image_enhanced");
     pnh.param<int>("image_enchantment", image_enchantment_, 0);

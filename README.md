@@ -1,5 +1,7 @@
 # Sensor Computer Software
 
+> Prerequisite SDKs: Install the [Spinnaker SDK](https://www.teledynevisionsolutions.com/en-au/products/spinnaker-sdk/?model=Spinnaker%20SDK&vertical=machine%20vision&segment=iis) (camera) and the [Livox SDK](https://github.com/Livox-SDK/Livox-SDK) (LiDAR) following their official install guides before building this workspace.
+
 ## Overview
 
 This repository contains the software stack for a fixed monitoring device designed for use in underground mining environments. The system is developed to operate robustly in challenging subterranean conditions, providing critical monitoring capabilities.
