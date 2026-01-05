@@ -6,8 +6,8 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BAG_DIR="${BAG_DIR:-"$SCRIPT_DIR/Rosbag files"}"
 
 # Extra options passed to rosbag play; override with PLAY_OPTS env var.
-# Common example: PLAY_OPTS="--clock"
-PLAY_OPTS="${PLAY_OPTS:-}"
+# Default includes --clock so sim time is available to nodes.
+PLAY_OPTS="${PLAY_OPTS:---clock}"
 
 if [[ ! -d "$BAG_DIR" ]]; then
   echo "Bag directory not found: $BAG_DIR" >&2
