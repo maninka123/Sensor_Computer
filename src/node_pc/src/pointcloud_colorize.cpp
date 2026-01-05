@@ -63,6 +63,7 @@ private:
     if (pnh.getParam("camera_matrix", Kvec) && Kvec.size() == 9)
     {
       camera_matrix_ = cv::Mat(3, 3, CV_64F, Kvec.data()).clone();
+      ROS_INFO_STREAM("Loaded camera_matrix from param.");
     }
     else
     {
@@ -70,17 +71,27 @@ private:
                         224.514866, 0.0, 243.278429,
                         0.0, 224.340765, 181.763517,
                         0.0, 0.0, 1.0);
+      ROS_WARN_STREAM("Using default camera_matrix (param not provided).");
     }
 
     std::vector<double> Dvec;
     if (pnh.getParam("dist_coeffs", Dvec) && !Dvec.empty())
     {
       dist_coeffs_ = cv::Mat(Dvec).clone();
+      ROS_INFO_STREAM("Loaded dist_coeffs from param.");
     }
     else
     {
       dist_coeffs_ = (cv::Mat_<double>(1, 5) << -0.212691, 0.087036, 0.0, 0.0, 0.0);
+      ROS_WARN_STREAM("Using default dist_coeffs (param not provided).");
     }
+
+    ROS_INFO_STREAM("Camera intrinsics: fx=" << camera_matrix_.at<double>(0,0)
+                    << " fy=" << camera_matrix_.at<double>(1,1)
+                    << " cx=" << camera_matrix_.at<double>(0,2)
+                    << " cy=" << camera_matrix_.at<double>(1,2)
+                    << " k1=" << dist_coeffs_.at<double>(0,0)
+                    << " k2=" << (dist_coeffs_.cols > 1 ? dist_coeffs_.at<double>(0,1) : 0.0));
   }
 
   void enchantCallback(const std_msgs::BoolConstPtr& msg)
@@ -143,6 +154,7 @@ private:
     pcl::PointCloud<pcl::PointXYZRGB> colored;
     colored.header = xyz->header;
     colored.reserve(xyz->points.size());
+    size_t colored_points = 0;
 
     const double fx = camera_matrix_.at<double>(0, 0);
     const double fy = camera_matrix_.at<double>(1, 1);
@@ -188,6 +200,7 @@ private:
           cpt.r = color[2];
           cpt.g = color[1];
           cpt.b = color[0];
+          ++colored_points;
         }
         else
         {
@@ -204,6 +217,12 @@ private:
 
     pcl::toROSMsg(colored, out);
     out.header = cloud.header;
+
+    const size_t total_pts = xyz->points.size();
+    const double ratio = total_pts > 0 ? static_cast<double>(colored_points) / total_pts : 0.0;
+    ROS_INFO_STREAM_THROTTLE(2.0, "Projection: colored " << colored_points << "/" << total_pts
+                                 << " (" << ratio * 100.0 << "%) with current intrinsics.");
+
     return true;
   }
 
