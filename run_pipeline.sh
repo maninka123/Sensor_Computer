@@ -5,7 +5,11 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_DIR="$SCRIPT_DIR"
 
 echo "[pipeline] Sourcing workspace..."
-source "$WS_DIR/devel/setup.bash"
+if [ -f "$WS_DIR/devel/setup.bash" ]; then
+  source "$WS_DIR/devel/setup.bash"
+else
+  echo "[pipeline] WARNING: devel/setup.bash not found; did you run catkin_make?"
+fi
 
 ROSBAG_MODE="${ROSBAG:-true}"
 
