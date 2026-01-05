@@ -16,4 +16,8 @@
 
   <!-- Rosbridge server -->
   <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_websocket" output="screen" />
+
+  <!-- Static TF between map and livox_frame (adjust if you have a calibrated transform) -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="static_map_to_livox"
+        args="0 0 0 0 0 0 map livox_frame" />
 </launch>

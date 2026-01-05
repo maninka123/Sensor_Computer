@@ -1,3 +1,7 @@
 build/
 devel/
 Rosbag files/
+
+__pycache__/
+*.pyc
+
