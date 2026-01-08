@@ -1,0 +1,203 @@
+<?xml version="1.0"?>
+<robot name="dome_device" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="params_file" default="$(find device_sim)/config/device_params.yaml"/>
+
+  <xacro:property name="M_PI" value="3.141592653589793"/>
+  <xacro:property name="cfg" value="${xacro.load_yaml(xacro.arg('params_file'))}"/>
+  <xacro:property name="dome_radius" value="${cfg['device_sim']['dome_radius']}"/>
+  <xacro:property name="dome_mass" value="${cfg['device_sim']['dome_mass']}"/>
+  <xacro:property name="dome_transparency" value="${cfg['device_sim']['dome_transparency']}"/>
+  <xacro:property name="camera_xyz" value="${cfg['device_sim']['camera_xyz']}"/>
+  <xacro:property name="camera_rpy" value="${cfg['device_sim']['camera_rpy']}"/>
+  <xacro:property name="camera_hfov_deg" value="${cfg['device_sim']['camera_hfov_deg']}"/>
+  <xacro:property name="camera_width" value="${cfg['device_sim']['camera_width']}"/>
+  <xacro:property name="camera_height" value="${cfg['device_sim']['camera_height']}"/>
+  <xacro:property name="camera_update_rate" value="${cfg['device_sim']['camera_update_rate']}"/>
+  <xacro:property name="camera_image_topic" value="${cfg['device_sim']['camera_image_topic']}"/>
+  <xacro:property name="camera_info_topic" value="${cfg['device_sim']['camera_info_topic']}"/>
+  <xacro:property name="lidar_xyz" value="${cfg['device_sim']['lidar_xyz']}"/>
+  <xacro:property name="lidar_rpy" value="${cfg['device_sim']['lidar_rpy']}"/>
+  <xacro:property name="lidar_topic" value="${cfg['device_sim']['lidar_topic']}"/>
+  <xacro:property name="lidar_visualize" value="${cfg['device_sim']['lidar_visualize']}"/>
+  <xacro:property name="lidar_update_rate" value="${cfg['device_sim']['lidar_update_rate']}"/>
+  <xacro:property name="lidar_min_range" value="${cfg['device_sim']['lidar_min_range']}"/>
+  <xacro:property name="lidar_max_range" value="${cfg['device_sim']['lidar_max_range']}"/>
+  <xacro:property name="lidar_horizontal_fov_deg" value="${cfg['device_sim']['lidar_horizontal_fov_deg']}"/>
+  <xacro:property name="lidar_vertical_fov_deg" value="${cfg['device_sim']['lidar_vertical_fov_deg']}"/>
+  <xacro:property name="lidar_samples" value="${cfg['device_sim']['lidar_samples']}"/>
+  <xacro:property name="lidar_downsample" value="${cfg['device_sim']['lidar_downsample']}"/>
+  <xacro:property name="lidar_csv" value="${cfg['device_sim']['lidar_csv']}"/>
+
+  <link name="base_link">
+    <inertial>
+      <mass value="0.1"/>
+      <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001"/>
+    </inertial>
+  </link>
+
+  <link name="dome_link">
+    <inertial>
+      <mass value="${dome_mass}"/>
+      <inertia ixx="0.1" ixy="0" ixz="0" iyy="0.1" iyz="0" izz="0.1"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://device_sim/meshes/hemisphere.stl" scale="${dome_radius} ${dome_radius} ${dome_radius}"/>
+      </geometry>
+      <material name="dome_yellow">
+        <color rgba="1.0 0.9 0.2 0.35"/>
+      </material>
+    </visual>
+    <!-- No collision so sensors can see through the dome. -->
+  </link>
+
+  <joint name="base_to_dome" type="fixed">
+    <parent link="base_link"/>
+    <child link="dome_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.03 0.03 0.08"/>
+      </geometry>
+      <material name="camera_blue">
+        <color rgba="0.4 0.7 1.0 1.0"/>
+      </material>
+    </visual>
+    <visual name="camera_face">
+      <origin xyz="0 0 0.04" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.03 0.03 0.001"/>
+      </geometry>
+      <material name="camera_face_green">
+        <color rgba="0.6 1.0 0.6 1.0"/>
+      </material>
+    </visual>
+    <visual name="camera_direction">
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.03" radius="0.002"/>
+      </geometry>
+      <material name="camera_dir_blue">
+        <color rgba="0.4 0.7 1.0 0.8"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_camera" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${camera_xyz}" rpy="${camera_rpy}"/>
+  </joint>
+
+  <gazebo reference="camera_link">
+    <sensor type="camera" name="camera_sensor">
+      <update_rate>${camera_update_rate}</update_rate>
+      <camera>
+        <horizontal_fov>${camera_hfov_deg * M_PI / 180.0}</horizontal_fov>
+        <image>
+          <width>${camera_width}</width>
+          <height>${camera_height}</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.05</near>
+          <far>200.0</far>
+        </clip>
+      </camera>
+      <plugin name="gazebo_ros_camera" filename="libgazebo_ros_camera.so">
+        <robotNamespace>/</robotNamespace>
+        <cameraName>camera</cameraName>
+        <imageTopicName>${camera_image_topic}</imageTopicName>
+        <cameraInfoTopicName>${camera_info_topic}</cameraInfoTopicName>
+        <frameName>camera_link</frameName>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <link name="livox_link">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://livox_laser_simulation/meshes/livox_mid40.dae"/>
+      </geometry>
+      <material name="livox_green">
+        <color rgba="0.2 1.0 0.2 1.0"/>
+      </material>
+    </visual>
+    <visual name="livox_direction">
+      <origin xyz="0 0 0.015" rpy="0 0 0"/>
+      <geometry>
+        <cylinder length="0.03" radius="0.002"/>
+      </geometry>
+      <material name="livox_dir_green">
+        <color rgba="0.2 1.0 0.2 0.8"/>
+      </material>
+    </visual>
+  </link>
+
+  <joint name="base_to_livox" type="fixed">
+    <parent link="base_link"/>
+    <child link="livox_link"/>
+    <origin xyz="${lidar_xyz}" rpy="${lidar_rpy}"/>
+  </joint>
+
+  <gazebo reference="livox_link">
+    <sensor type="ray" name="livox_laser">
+      <pose>0 0 0 0 0 0</pose>
+      <visualize>${lidar_visualize}</visualize>
+      <update_rate>${lidar_update_rate}</update_rate>
+      <plugin name="gazebo_livox_plugin" filename="liblivox_laser_simulation.so">
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>100</samples>
+              <resolution>1</resolution>
+              <min_angle>${-lidar_horizontal_fov_deg/360.0*M_PI}</min_angle>
+              <max_angle>${lidar_horizontal_fov_deg/360.0*M_PI}</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>50</samples>
+              <resolution>1</resolution>
+              <min_angle>${-lidar_vertical_fov_deg/360.0*M_PI}</min_angle>
+              <max_angle>${lidar_vertical_fov_deg/360.0*M_PI}</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>${lidar_min_range}</min>
+            <max>${lidar_max_range}</max>
+            <resolution>0.002</resolution>
+          </range>
+          <noise>
+            <type>gaussian</type>
+            <mean>0.0</mean>
+            <stddev>0.01</stddev>
+          </noise>
+        </ray>
+        <visualize>${lidar_visualize}</visualize>
+        <samples>${lidar_samples}</samples>
+        <downsample>${lidar_downsample}</downsample>
+        <csv_file_name>${lidar_csv}</csv_file_name>
+        <ros_topic>${lidar_topic}</ros_topic>
+      </plugin>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="dome_link">
+    <material>Gazebo/Yellow</material>
+    <transparency>0.65</transparency>
+    <cast_shadows>false</cast_shadows>
+    <visual>
+      <material>
+        <ambient>1.0 0.9 0.2 0.35</ambient>
+        <diffuse>1.0 0.9 0.2 0.35</diffuse>
+        <specular>0.1 0.1 0.1 0.2</specular>
+      </material>
+      <transparency>0.65</transparency>
+    </visual>
+  </gazebo>
+</robot>
