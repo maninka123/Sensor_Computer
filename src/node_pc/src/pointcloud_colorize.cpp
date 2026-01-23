@@ -87,6 +87,18 @@ private:
       ROS_WARN_STREAM("Using default dist_coeffs (param not provided).");
     }
 
+    std::vector<double> Evec;
+    if (pnh.getParam("extrinsic_matrix", Evec) && Evec.size() == 16)
+    {
+      extrinsic_matrix_ = cv::Mat(4, 4, CV_64F, Evec.data()).clone();
+      ROS_INFO_STREAM("Loaded extrinsic_matrix from param.");
+    }
+    else
+    {
+      extrinsic_matrix_ = cv::Mat::eye(4, 4, CV_64F);
+      ROS_WARN_STREAM("Using default Identity extrinsic matrix (param not provided).");
+    }
+
     ROS_INFO_STREAM("Camera intrinsics: fx=" << camera_matrix_.at<double>(0,0)
                     << " fy=" << camera_matrix_.at<double>(1,1)
                     << " cx=" << camera_matrix_.at<double>(0,2)
@@ -182,32 +194,52 @@ private:
       cpt.y = pt.y;
       cpt.z = pt.z;
 
-      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z) && pt.z > 0.0f)
+      if (std::isfinite(pt.x) && std::isfinite(pt.y) && std::isfinite(pt.z))
       {
-        double xn = pt.x / pt.z;
-        double yn = pt.y / pt.z;
+        const double x_c = extrinsic_matrix_.at<double>(0, 0) * pt.x +
+                           extrinsic_matrix_.at<double>(0, 1) * pt.y +
+                           extrinsic_matrix_.at<double>(0, 2) * pt.z +
+                           extrinsic_matrix_.at<double>(0, 3);
+        const double y_c = extrinsic_matrix_.at<double>(1, 0) * pt.x +
+                           extrinsic_matrix_.at<double>(1, 1) * pt.y +
+                           extrinsic_matrix_.at<double>(1, 2) * pt.z +
+                           extrinsic_matrix_.at<double>(1, 3);
+        const double z_c = extrinsic_matrix_.at<double>(2, 0) * pt.x +
+                           extrinsic_matrix_.at<double>(2, 1) * pt.y +
+                           extrinsic_matrix_.at<double>(2, 2) * pt.z +
+                           extrinsic_matrix_.at<double>(2, 3);
 
-        double r2 = xn * xn + yn * yn;
-        double radial = 1.0 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
-        double x_tangential = 2.0 * p1 * xn * yn + p2 * (r2 + 2.0 * xn * xn);
-        double y_tangential = p1 * (r2 + 2.0 * yn * yn) + 2.0 * p2 * xn * yn;
-
-        double x_distorted = xn * radial + x_tangential;
-        double y_distorted = yn * radial + y_tangential;
-
-        double u = fx * (x_distorted + skew * y_distorted) + cx;
-        double v = fy * y_distorted + cy;
-
-        int u_px = static_cast<int>(std::round(u));
-        int v_px = static_cast<int>(std::round(v));
-
-        if (u_px >= 0 && u_px < img.cols && v_px >= 0 && v_px < img.rows)
+        if (z_c > 0.0)
         {
-          const cv::Vec3b& color = img.at<cv::Vec3b>(v_px, u_px);
-          cpt.r = color[2];
-          cpt.g = color[1];
-          cpt.b = color[0];
-          ++colored_points;
+          const double xn = x_c / z_c;
+          const double yn = y_c / z_c;
+
+          const double r2 = xn * xn + yn * yn;
+          const double radial = 1.0 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
+          const double x_tangential = 2.0 * p1 * xn * yn + p2 * (r2 + 2.0 * xn * xn);
+          const double y_tangential = p1 * (r2 + 2.0 * yn * yn) + 2.0 * p2 * xn * yn;
+
+          const double x_distorted = xn * radial + x_tangential;
+          const double y_distorted = yn * radial + y_tangential;
+
+          const double u = fx * (x_distorted + skew * y_distorted) + cx;
+          const double v = fy * y_distorted + cy;
+
+          const int u_px = static_cast<int>(std::round(u));
+          const int v_px = static_cast<int>(std::round(v));
+
+          if (u_px >= 0 && u_px < img.cols && v_px >= 0 && v_px < img.rows)
+          {
+            const cv::Vec3b& color = img.at<cv::Vec3b>(v_px, u_px);
+            cpt.r = color[2];
+            cpt.g = color[1];
+            cpt.b = color[0];
+            ++colored_points;
+          }
+          else
+          {
+            cpt.r = cpt.g = cpt.b = 0;
+          }
         }
         else
         {
@@ -245,6 +277,7 @@ private:
 
   cv::Mat camera_matrix_;
   cv::Mat dist_coeffs_;
+  cv::Mat extrinsic_matrix_;
 
   sensor_msgs::ImageConstPtr last_image_;
 

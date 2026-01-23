@@ -27,6 +27,41 @@ The software runs on a dedicated sensor computer and integrates various hardware
 - `camera_control_msgs`: Custom ROS messages and service definitions for camera control.
 - `tf2_web_republisher`: Utilities for republishing TF2 data for web interfaces.
 
+## Monitoring and Diagnostics
+
+### Status Monitor
+The status monitor provides a live terminal dashboard for node health and sensor sync:
+- Per-topic rates (Hz) with stale detection.
+- Timestamp offset between `/livox/lidar_shifted` and `/camera/image_raw`.
+- Image enhancement status (topic + param).
+
+Run it with ROS running and topics available:
+
+```bash
+rosrun node_pc monitor_status.py
+```
+
+Optional parameters:
+- `~image_enchantment_topic` (default `/image_enhancement`)
+- `/pointcloud_colorizer/image_enchantment` (used if set)
+- `/monitor_status/sync_tolerance` (default `0.1` seconds)
+
+### Timestamp Checker
+The timestamp checker scans rosbag files and computes timestamp offsets between:
+- rosbag time (sim time)
+- LiDAR `header.stamp`
+- Camera `header.stamp`
+
+It summarizes offsets per bag and recommends `lidar_timestamp_shift` config values.
+
+Run it from the repo root:
+
+```bash
+python3 src/node_pc/scripts/timestamp_checker.py
+```
+
+By default it looks for `.bag` files in `Rosbag files/` at the workspace root.
+
 ## License
 
 This software is proprietary and confidential.
