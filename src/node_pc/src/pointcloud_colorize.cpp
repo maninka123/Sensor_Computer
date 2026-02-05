@@ -36,8 +36,8 @@ public:
 
     cloud_sub_ = nh.subscribe(input_topic_, queue_size_, &PointCloudColorizer::cloudCallback, this);
 
-    const std::string& chosen_image_topic = (image_enchantment_ != 0) ? enhanced_image_topic_ : image_topic_;
-    image_sub_ = nh.subscribe(chosen_image_topic, queue_size_, &PointCloudColorizer::imageCallback, this);
+    raw_image_sub_ = nh.subscribe(image_topic_, queue_size_, &PointCloudColorizer::rawImageCallback, this);
+    enhanced_image_sub_ = nh.subscribe(enhanced_image_topic_, queue_size_, &PointCloudColorizer::enhancedImageCallback, this);
     pub_ = nh.advertise<sensor_msgs::PointCloud2>(output_topic_, 1);
 
     if (!image_enchantment_topic_.empty())
@@ -46,15 +46,17 @@ public:
     }
 
     ROS_INFO_STREAM("Colorizer: cloud=" << input_topic_
-                    << " image=" << chosen_image_topic
+                    << " raw_image=" << image_topic_
+                    << " enhanced_image=" << enhanced_image_topic_
                     << " output=" << output_topic_
                     << " sync_tol=" << sync_tolerance_
                     << " enhancement_param=" << image_enchantment_);
 
     ROS_INFO_STREAM("Colorizing " << input_topic_ << " -> " << output_topic_
-                    << " using images " << chosen_image_topic
+                    << " using raw=" << image_topic_
+                    << " and enhanced=" << enhanced_image_topic_
                     << " (sync tolerance " << sync_tolerance_ << " s)"
-                    << " enhancement=" << (image_enchantment_ != 0));
+                    << " default_enhancement=" << (image_enchantment_ != 0));
   }
 
 private:
@@ -115,11 +117,12 @@ private:
 
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
   {
-    if (!last_image_)
+    const sensor_msgs::ImageConstPtr& selected_image = (image_enchantment_ != 0) ? last_enhanced_image_ : last_raw_image_;
+    if (!selected_image)
     {
       return;
     }
-    double dt = fabs((msg->header.stamp - last_image_->header.stamp).toSec());
+    double dt = fabs((msg->header.stamp - selected_image->header.stamp).toSec());
     if (dt > sync_tolerance_)
     {
       if (verbose_)
@@ -130,21 +133,27 @@ private:
     }
 
     sensor_msgs::PointCloud2 colored;
-    if (colorize(*msg, last_image_, colored))
+    if (colorize(*msg, selected_image, colored))
     {
       pub_.publish(colored);
       if (verbose_)
       {
         ROS_INFO_STREAM_THROTTLE(2.0, "Published colorized cloud from cloud stamp "
                                   << msg->header.stamp << " and image stamp "
-                                  << last_image_->header.stamp);
+                                  << selected_image->header.stamp
+                                  << " source=" << (image_enchantment_ != 0 ? "enhanced" : "raw"));
       }
     }
   }
 
-  void imageCallback(const sensor_msgs::ImageConstPtr& msg)
+  void rawImageCallback(const sensor_msgs::ImageConstPtr& msg)
   {
-    last_image_ = msg;
+    last_raw_image_ = msg;
+  }
+
+  void enhancedImageCallback(const sensor_msgs::ImageConstPtr& msg)
+  {
+    last_enhanced_image_ = msg;
   }
 
   bool colorize(const sensor_msgs::PointCloud2& cloud,
@@ -279,10 +288,12 @@ private:
   cv::Mat dist_coeffs_;
   cv::Mat extrinsic_matrix_;
 
-  sensor_msgs::ImageConstPtr last_image_;
+  sensor_msgs::ImageConstPtr last_raw_image_;
+  sensor_msgs::ImageConstPtr last_enhanced_image_;
 
   ros::Subscriber cloud_sub_;
-  ros::Subscriber image_sub_;
+  ros::Subscriber raw_image_sub_;
+  ros::Subscriber enhanced_image_sub_;
   ros::Subscriber enchant_sub_;
   ros::Publisher pub_;
 };

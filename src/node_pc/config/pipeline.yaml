@@ -26,6 +26,7 @@ monitor_status:
 
 image_enhancer:
   enabled: 0
+  toggle_topic: "/image_enhancement"
   input_topic: "/camera/image_raw"
   output_topic: "/camera/image_enhanced"
   queue_size: 5

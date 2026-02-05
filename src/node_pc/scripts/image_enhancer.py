@@ -4,6 +4,7 @@ import sys
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+from std_msgs.msg import Bool
 
 # Ensure we can import the lidar_image_model bundled under scripts/Image_enchancemet
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -24,19 +25,25 @@ class ImageEnhancerNode:
 
         p = rospy.get_param
         self.enabled = bool(p("~enabled", False))
+        self.toggle_topic = p("~toggle_topic", "/image_enhancement")
         self.input_topic = p("~input_topic", "/camera/image_raw")
         self.output_topic = p("~output_topic", "/camera/image_enhanced")
         self.queue_size = int(p("~queue_size", 5))
 
         self.sub = rospy.Subscriber(self.input_topic, Image, self.callback, queue_size=self.queue_size)
+        self.toggle_sub = rospy.Subscriber(self.toggle_topic, Bool, self.toggle_callback, queue_size=1)
         self.pub = rospy.Publisher(self.output_topic, Image, queue_size=1)
 
         rospy.loginfo(
-            "Image enhancer started. enabled=%s, input=%s, output=%s",
+            "Image enhancer started. enabled=%s, toggle=%s, input=%s, output=%s",
             self.enabled,
+            self.toggle_topic,
             self.input_topic,
             self.output_topic,
         )
+
+    def toggle_callback(self, msg: Bool):
+        self.enabled = bool(msg.data)
 
     def callback(self, msg: Image):
         try:

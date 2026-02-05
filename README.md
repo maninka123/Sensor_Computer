@@ -62,6 +62,25 @@ python3 src/node_pc/scripts/timestamp_checker.py
 
 By default it looks for `.bag` files in `Rosbag files/` at the workspace root.
 
+## Image Enhancement Pipeline
+
+The camera enhancement pipeline is designed for low-light, dusty underground scenes where raw frames often have poor visibility.  
+At runtime, `node_pc/scripts/image_enhancer.py` subscribes to `/camera/image_raw`, applies the enhancement model, and publishes `/camera/image_enhanced`.  
+The toggle topic `/image_enhancement` enables switching enhancement ON/OFF without restarting nodes.
+
+### What the model is
+- Inference uses `node_pc/scripts/Image_enchancemet/lidar_image_model.py`.
+- The deployed checkpoint is `node_pc/scripts/Image_enchancemet/weights/Model_V1.pt`.
+- The network architecture is defined in `node_pc/scripts/Image_enchancemet/model_1.py` (`EnhanceNetwork` + calibration components).
+
+### Why this approach
+- It improves image brightness/contrast while preserving structure needed for downstream point cloud colorization.
+- The training setup follows a self-supervised (no paired clean target) objective using reconstruction-style fidelity and structure-aware smoothness terms (`node_pc/scripts/Image_enchancemet/loss.py`), which is practical for mining data where ground-truth clean images are hard to collect.
+
+### Raw vs Enhanced Example
+
+![Raw vs Enhanced](Images/Raw_vs_Enchanced.jpeg)
+
 ## License
 
 This software is proprietary and confidential.
