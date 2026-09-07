@@ -1,0 +1,423 @@
+{
+  "surface": "report",
+  "manifest": {
+    "version": 1,
+    "surface": "report",
+    "title": "SCI CPU Optimization for ROCK 5 Model A",
+    "description": "Technical deployment report covering the original SCI inference path, CPU optimizations, measured host performance, output fidelity, and ROCK 5A validation procedure.",
+    "generatedAt": "2026-09-07T14:55:05+10:00",
+    "cards": [
+      {
+        "id": "latency_card",
+        "description": "Median model-only latency at 600x400 with four CPU threads.",
+        "dataset": "summary",
+        "sourceId": "benchmark_aggregate",
+        "metrics": [
+          {"label": "Optimized latency", "field": "torchscript_median_ms", "format": "number", "unit": "ms"},
+          {"label": "Original latency", "field": "baseline_median_ms", "format": "number", "unit": "ms"}
+        ]
+      },
+      {
+        "id": "speedup_card",
+        "description": "Relative reduction in model execution time versus the eager baseline.",
+        "dataset": "summary",
+        "sourceId": "benchmark_aggregate",
+        "metrics": [
+          {"label": "Speedup", "field": "torchscript_speedup", "format": "number", "unit": "x"},
+          {"label": "Latency reduction", "field": "latency_reduction", "format": "percent", "signed": true}
+        ]
+      },
+      {
+        "id": "throughput_card",
+        "description": "Throughput implied by median model-only latency; file I/O is excluded.",
+        "dataset": "summary",
+        "sourceId": "benchmark_aggregate",
+        "metrics": [
+          {"label": "Optimized throughput", "field": "torchscript_fps", "format": "number", "unit": "FPS"},
+          {"label": "Original throughput", "field": "baseline_fps", "format": "number", "unit": "FPS"}
+        ]
+      },
+      {
+        "id": "fidelity_card",
+        "description": "Maximum absolute floating-point difference from the original repository model.",
+        "dataset": "summary",
+        "sourceId": "benchmark_aggregate",
+        "metrics": [
+          {"label": "Maximum output error", "field": "max_abs_error_ppm", "format": "number", "unit": "ppm"}
+        ]
+      },
+      {
+        "id": "parameter_card",
+        "description": "Trainable scalar parameters remaining after BatchNorm fusion.",
+        "dataset": "summary",
+        "sourceId": "model_export",
+        "metrics": [
+          {"label": "Deployment parameters", "field": "deployment_parameters", "format": "number"}
+        ]
+      }
+    ],
+    "charts": [
+      {
+        "id": "latency_chart",
+        "title": "Median inference latency by CPU threads and backend",
+        "subtitle": "600x400 RGB image; 20 warm-up runs and 100 measured runs per configuration; lower is better.",
+        "type": "bar",
+        "intent": "comparison",
+        "question": "How does model-only latency compare across backends and thread counts?",
+        "rationale": "Grouped bars support direct backend comparison at each discrete thread count.",
+        "comparisonContext": {"baseline": "Original eager PyTorch", "grain": "one image inference", "unit": "milliseconds"},
+        "dataset": "benchmark_rows",
+        "sourceId": "benchmark_aggregate",
+        "encodings": {
+          "x": {"field": "threads", "type": "ordinal", "label": "CPU threads"},
+          "y": {"field": "median_ms", "type": "quantitative", "label": "Median latency", "format": "number", "unit": "ms"},
+          "color": {"field": "backend", "type": "nominal", "label": "Backend"},
+          "tooltip": [
+            {"field": "mean_ms", "type": "quantitative", "label": "Mean", "format": "number", "unit": "ms"},
+            {"field": "p95_ms", "type": "quantitative", "label": "P95", "format": "number", "unit": "ms"},
+            {"field": "fps", "type": "quantitative", "label": "FPS", "format": "number"}
+          ]
+        },
+        "palette": {"kind": "categorical", "name": "blue-orange-olive"},
+        "legend": {"position": "bottom", "sort": "spec", "title": "Backend"},
+        "labels": {"values": "auto"},
+        "settings": {"orientation": "vertical", "groupMode": "grouped", "showValues": true, "sort": "custom"},
+        "layout": "full"
+      },
+      {
+        "id": "size_chart",
+        "title": "Model artifact size before and after deployment optimization",
+        "subtitle": "Exact on-disk size in KiB; lower reduces storage and transfer overhead.",
+        "type": "bar",
+        "intent": "comparison",
+        "question": "How much smaller are the deployment artifacts than the original checkpoint?",
+        "rationale": "A zero-based magnitude bar makes the reduction immediately visible.",
+        "comparisonContext": {"baseline": "Original Model_V3 checkpoint", "grain": "one model artifact", "unit": "KiB"},
+        "dataset": "file_sizes",
+        "sourceId": "file_inventory",
+        "encodings": {
+          "x": {"field": "artifact", "type": "nominal", "label": "Artifact"},
+          "y": {"field": "kib", "type": "quantitative", "label": "File size", "format": "number", "unit": "KiB"},
+          "tooltip": [
+            {"field": "bytes", "type": "quantitative", "label": "Bytes", "format": "number"},
+            {"field": "reduction_vs_checkpoint", "type": "quantitative", "label": "Reduction", "format": "percent"}
+          ]
+        },
+        "palette": {"kind": "sequential", "name": "blue"},
+        "labels": {"values": "all"},
+        "settings": {"orientation": "vertical", "groupMode": "single", "showValues": true, "sort": "none"},
+        "layout": "full"
+      }
+    ],
+    "tables": [
+      {
+        "id": "performance_table",
+        "title": "Complete CPU benchmark results",
+        "subtitle": "Development host, 600x400 input, 20 warm-up and 100 measured model-only runs for each configuration.",
+        "dataset": "benchmark_rows",
+        "sourceId": "benchmark_aggregate",
+        "defaultSort": {"field": "median_ms", "direction": "asc"},
+        "columns": [
+          {"field": "threads", "label": "Threads", "type": "number"},
+          {"field": "backend", "label": "Backend", "type": "text"},
+          {"field": "median_ms", "label": "Median (ms)", "format": "number"},
+          {"field": "mean_ms", "label": "Mean (ms)", "format": "number"},
+          {"field": "p95_ms", "label": "P95 (ms)", "format": "number"},
+          {"field": "fps", "label": "FPS", "format": "number"},
+          {"field": "speedup", "label": "Speedup vs eager", "format": "number", "movement": true}
+        ]
+      },
+      {
+        "id": "change_table",
+        "title": "Deployment changes compared with the original repository path",
+        "subtitle": "Each change preserves the trained enhancement function unless explicitly marked as a runtime choice.",
+        "dataset": "change_log",
+        "sourceId": "change_log",
+        "defaultSort": {"field": "order", "direction": "asc"},
+        "columns": [
+          {"field": "order", "label": "Step", "type": "number"},
+          {"field": "before", "label": "Before", "type": "text"},
+          {"field": "after", "label": "After", "type": "text"},
+          {"field": "cpu_effect", "label": "CPU effect", "type": "text"},
+          {"field": "quality_effect", "label": "Quality effect", "type": "text"}
+        ]
+      },
+      {
+        "id": "fidelity_table",
+        "title": "Output-equivalence checks",
+        "subtitle": "Original Finetunemodel compared with the packaged deployment model on the 600x400 sample image.",
+        "dataset": "fidelity_checks",
+        "sourceId": "fidelity_checks",
+        "defaultSort": {"field": "check", "direction": "asc"},
+        "columns": [
+          {"field": "check", "label": "Check", "type": "text"},
+          {"field": "result", "label": "Measured result", "type": "text"},
+          {"field": "interpretation", "label": "Interpretation", "type": "text"}
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "id": "benchmark_aggregate",
+        "label": "Measured CPU benchmark results",
+        "path": "report_support/benchmark_aggregate.csv",
+        "query": {
+          "engine": "duckdb",
+          "language": "sql",
+          "description": "Loads the reviewed per-thread backend benchmark and derives the four-thread headline comparison.",
+          "sql": "WITH benchmark AS (SELECT * FROM read_csv_auto('report_support/benchmark_aggregate.csv', header = true)) SELECT *, MAX(CASE WHEN threads = 4 AND backend = 'Original eager PyTorch' THEN median_ms END) OVER () AS baseline_4t_ms, MAX(CASE WHEN threads = 4 AND backend = 'Fused TorchScript' THEN median_ms END) OVER () AS torchscript_4t_ms FROM benchmark",
+          "tables_used": ["report_support/benchmark_aggregate.csv"],
+          "filters": ["600x400 RGB sample", "20 warm-up runs", "100 measured runs", "model-only latency"]
+        }
+      },
+      {
+        "id": "model_export",
+        "label": "TorchScript export validation",
+        "path": "model_info.json",
+        "query": {
+          "engine": "duckdb",
+          "language": "sql",
+          "description": "Reads the exported deployment parameter count and multi-resolution validation results.",
+          "sql": "SELECT parameters_after_fusion AS deployment_parameters, validation FROM read_json_auto('model_info.json')",
+          "tables_used": ["model_info.json"]
+        }
+      },
+      {
+        "id": "file_inventory",
+        "label": "Deployment artifact file inventory",
+        "path": "report_support/file_inventory.csv",
+        "query": {
+          "engine": "duckdb",
+          "language": "sql",
+          "description": "Loads exact artifact bytes and KiB with reduction versus the original checkpoint.",
+          "sql": "SELECT * FROM read_csv_auto('report_support/file_inventory.csv', header = true)",
+          "tables_used": ["report_support/file_inventory.csv"]
+        }
+      },
+      {
+        "id": "change_log",
+        "label": "Before-and-after deployment change log",
+        "path": "report_support/change_log.csv",
+        "query": {
+          "engine": "duckdb",
+          "language": "sql",
+          "description": "Loads the audited mapping from original behavior to deployment behavior.",
+          "sql": "SELECT * FROM read_csv_auto('report_support/change_log.csv', header = true) ORDER BY \"order\"",
+          "tables_used": ["report_support/change_log.csv"]
+        }
+      },
+      {
+        "id": "fidelity_checks",
+        "label": "Numerical and pixel fidelity checks",
+        "path": "report_support/fidelity_checks.csv",
+        "query": {
+          "engine": "duckdb",
+          "language": "sql",
+          "description": "Loads the reviewed numerical, saved-pixel, and dynamic-shape equivalence checks.",
+          "sql": "SELECT * FROM read_csv_auto('report_support/fidelity_checks.csv', header = true)",
+          "tables_used": ["report_support/fidelity_checks.csv"]
+        }
+      },
+      {"id": "model_code", "label": "Standalone SCI deployment implementation", "path": "model_def.py"},
+      {"id": "radxa_docs", "label": "Radxa ROCK 5A product documentation", "href": "https://docs.radxa.com/en/rock5/rock5a/getting-started/introduction"},
+      {"id": "sci_reference", "label": "Official SCI project", "href": "https://github.com/vis-opt-group/SCI"}
+    ],
+    "blocks": [
+      {"id": "title", "type": "markdown", "body": "# SCI CPU Optimization for ROCK 5 Model A"},
+      {
+        "id": "technical_summary",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "## Technical summary\n\nThe packaged TorchScript graph is the recommended CPU backend. On the development host it reduced median 600x400 model latency from **2.510 ms to 1.072 ms** at four threads, a **2.34x speedup**, while increasing implied model-only throughput from **398.4 to 933.3 FPS**. The largest floating-point difference from the original repository model was **4.17e-7**, so the optimization is functionally equivalent. These timings are x86 evidence, not a ROCK 5A forecast; the included benchmark must be run on the board for deployable ARM numbers."
+      },
+      {"id": "headline_metrics", "type": "metric-strip", "cardIds": ["latency_card", "speedup_card", "throughput_card", "fidelity_card", "parameter_card"]},
+      {
+        "id": "performance_finding",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "## TorchScript delivered the largest measured CPU gain\n\nTorchScript was faster than both eager PyTorch and ONNX Runtime at every tested thread count on the development host. The gain remained substantial from one to four threads, showing that graph simplification and freezing improved execution independently of thread-level parallelism."
+      },
+      {"id": "latency_visual", "type": "chart", "chartId": "latency_chart", "layout": "full"},
+      {
+        "id": "latency_interpretation",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "### How to read the latency chart\n\nEach cluster holds the same image, warm-up count, measured-run count, and CPU thread count. Lower bars are faster. Four-thread TorchScript reached the lowest median at **1.072 ms**. ONNX Runtime improved on eager execution at one and two threads but was slower than eager at four threads on this host, which is why TorchScript remains the default while both backends are shipped for ARM benchmarking."
+      },
+      {"id": "performance_detail", "type": "table", "tableId": "performance_table", "layout": "full"},
+      {
+        "id": "size_finding",
+        "type": "markdown",
+        "sourceId": "file_inventory",
+        "body": "## Deployment artifacts are 88% to 94% smaller than the checkpoint\n\nThe original 42.94 KiB checkpoint contains training-only calibration state and duplicated module registrations. The ready-to-run artifact is **5.27 KiB in TorchScript** or **2.55 KiB in ONNX**, reducing copy size by **87.7%** and **94.1%**, respectively."
+      },
+      {"id": "size_visual", "type": "chart", "chartId": "size_chart", "layout": "full"},
+      {
+        "id": "size_interpretation",
+        "type": "markdown",
+        "sourceId": "file_inventory",
+        "body": "### How to read the artifact-size chart\n\nThe bars use a zero baseline and show exact on-disk KiB. The reduction comes from deploying only the single SCI enhancement pass and serializing the inference graph. It lowers storage and transfer overhead; runtime memory is still dominated by image feature maps and the selected inference library."
+      },
+      {
+        "id": "architecture_changes",
+        "type": "markdown",
+        "sourceId": "model_code",
+        "body": "## The deployment graph removes training work without changing the learned enhancer\n\nSCI trains with iterative stages and a self-calibration network, but its intended inference path uses one shared illumination-estimation block. The standalone package keeps the three 3x3 convolutions used by `Finetunemodel`, folds BatchNorm into the middle convolution, freezes the graph, uses channels-last tensors, performs safe arithmetic in place, and runs under inference mode."
+      },
+      {"id": "change_detail", "type": "table", "tableId": "change_table", "layout": "full"},
+      {
+        "id": "scope_definitions",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "## Scope and metric definitions\n\n**Cohort:** one 600x400 RGB low-light image from the included LOL evaluation sample. **Latency:** wall-clock time for model execution only; Pillow decode, tensor creation, and PNG encoding are excluded. **Median, mean, and p95:** calculated from 100 measured runs after 20 warm-up runs. **FPS:** 1000 divided by median milliseconds and therefore an implied single-stream model-only rate, not camera-pipeline throughput. **Speedup:** eager median divided by optimized median at the same thread count."
+      },
+      {
+        "id": "methodology",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "## Measurement and validation methodology\n\nThe baseline reconstructs the repository's `Finetunemodel` enhancement path from `Model_V3.pt`. The optimized model folds BatchNorm analytically, scripts and freezes a dynamic-resolution graph, and preserves channels-last memory layout. Thread counts 1, 2, and 4 were evaluated independently. Numerical outputs were compared before 8-bit conversion; saved PNGs were then compared per pixel. The packaged `benchmark.py` repeats the same method and records platform, architecture, Python, PyTorch, affinity, resolution, run count, and backend results in JSON and CSV."
+      },
+      {
+        "id": "validation",
+        "type": "markdown",
+        "sourceId": "benchmark_aggregate",
+        "body": "## Robustness checks show visually equivalent output\n\nThe deployment graph was checked against the original repository class, not only against a rewritten baseline. Maximum and mean floating-point errors remained far below one 8-bit intensity step. The saved comparison images are retained in `results/` for visual audit."
+      },
+      {"id": "fidelity_detail", "type": "table", "tableId": "fidelity_table", "layout": "full"},
+      {
+        "id": "limitations",
+        "type": "markdown",
+        "body": "## Limits and uncertainty\n\n- The reported latency is from a Windows x86 development machine and must not be presented as ROCK 5A performance.\n- ROCK 5A results will vary with the Linux image, PyTorch and ONNX Runtime builds, CPU governor, thermal state, memory pressure, and power delivery.\n- The package is CPU-only as requested; the RK3588S NPU and Mali GPU were not evaluated.\n- Model-only FPS excludes camera capture, image conversion, resizing, and output encoding.\n- ONNX and TorchScript can rank differently on Arm, so the faster backend must be selected using board measurements."
+      },
+      {
+        "id": "next_steps",
+        "type": "markdown",
+        "body": "## Recommended ROCK 5A validation\n\n1. Copy the complete `SBC inference` folder to a 64-bit ROCK 5A installation.\n2. Run `./install_rock5a.sh`, then confirm `uname -m` reports `aarch64`.\n3. Run `benchmark.py` at 1, 2, and 4 threads with automatic A76-core affinity.\n4. Select TorchScript or ONNX using median latency while checking p95 stability.\n5. Repeat under the real camera resolution and sustained workload while monitoring temperature and throttling.\n6. Keep full resolution by default; use `--max-side` only when the application explicitly accepts a resolution-speed tradeoff."
+      },
+      {
+        "id": "further_questions",
+        "type": "markdown",
+        "body": "## Further questions\n\n- Which ROCK 5A OS image and Python version will be used in production?\n- What is the real input resolution, frame rate, and camera interface?\n- Is the objective minimum single-frame latency, maximum batch throughput, or a fixed real-time FPS target?\n- After CPU validation, would an optional RKNN/NPU build be acceptable as a separate deployment mode?"
+      }
+    ]
+  },
+  "snapshot": {
+    "version": 1,
+    "generatedAt": "2026-09-07T14:55:05+10:00",
+    "status": "ready",
+    "datasets": {
+      "summary": [
+        {
+          "torchscript_median_ms": 1.0715,
+          "baseline_median_ms": 2.5103,
+          "torchscript_speedup": 2.34279,
+          "latency_reduction": 0.57316,
+          "torchscript_fps": 933.2711,
+          "baseline_fps": 398.3588,
+          "max_abs_error": 0.0000004172325,
+          "max_abs_error_ppm": 0.4172325,
+          "deployment_parameters": 252
+        }
+      ],
+      "benchmark_rows": [
+        {"threads": 1, "backend": "Original eager PyTorch", "median_ms": 8.26225, "mean_ms": 8.291366, "p95_ms": 8.6901, "fps": 121.032407, "speedup": 1.0},
+        {"threads": 1, "backend": "Fused TorchScript", "median_ms": 3.2373, "mean_ms": 3.285783, "p95_ms": 3.5806, "fps": 308.899392, "speedup": 2.552204},
+        {"threads": 1, "backend": "ONNX Runtime", "median_ms": 6.77255, "mean_ms": 6.79379, "p95_ms": 7.3613, "fps": 147.654872, "speedup": 1.219961},
+        {"threads": 2, "backend": "Original eager PyTorch", "median_ms": 4.42645, "mean_ms": 4.509218, "p95_ms": 5.0133, "fps": 225.914673, "speedup": 1.0},
+        {"threads": 2, "backend": "Fused TorchScript", "median_ms": 1.8358, "mean_ms": 1.874573, "p95_ms": 2.1073, "fps": 544.721645, "speedup": 2.411183},
+        {"threads": 2, "backend": "ONNX Runtime", "median_ms": 4.1074, "mean_ms": 4.161094, "p95_ms": 4.6696, "fps": 243.463019, "speedup": 1.077677},
+        {"threads": 4, "backend": "Original eager PyTorch", "median_ms": 2.5103, "mean_ms": 2.743132, "p95_ms": 3.702, "fps": 398.358763, "speedup": 1.0},
+        {"threads": 4, "backend": "Fused TorchScript", "median_ms": 1.0715, "mean_ms": 1.138129, "p95_ms": 1.5923, "fps": 933.271107, "speedup": 2.34279},
+        {"threads": 4, "backend": "ONNX Runtime", "median_ms": 2.93365, "mean_ms": 3.023721, "p95_ms": 3.9389, "fps": 340.872292, "speedup": 0.855692}
+      ],
+      "file_sizes": [
+        {"artifact": "Original checkpoint", "bytes": 43967, "kib": 42.9365, "reduction_vs_checkpoint": 0.0},
+        {"artifact": "TorchScript", "bytes": 5395, "kib": 5.2686, "reduction_vs_checkpoint": 0.8773},
+        {"artifact": "ONNX", "bytes": 2607, "kib": 2.5459, "reduction_vs_checkpoint": 0.9407}
+      ],
+      "change_log": [
+        {"order": 1, "before": "Training model imported loss and calibration code", "after": "Inference-only module with no training dependency", "cpu_effect": "Less initialization and package complexity", "quality_effect": "None; training-only path removed"},
+        {"order": 2, "before": "BatchNorm executed after the middle convolution", "after": "BatchNorm folded into convolution weights and bias", "cpu_effect": "One runtime operator and tensor pass removed", "quality_effect": "Equivalent up to floating-point rounding"},
+        {"order": 3, "before": "Python eager module dispatch", "after": "Scripted and frozen TorchScript graph", "cpu_effect": "Lower dispatch overhead and constant folding", "quality_effect": "None beyond floating-point rounding"},
+        {"order": 4, "before": "Default contiguous NCHW image conversion", "after": "Channels-last tensor strides from HWC input", "cpu_effect": "Avoids an extra layout conversion and suits Arm kernels", "quality_effect": "None"},
+        {"order": 5, "before": "Out-of-place temporary tensors", "after": "Safe in-place activation and clamp operations", "cpu_effect": "Lower allocation and memory traffic", "quality_effect": "None beyond operation-order rounding"},
+        {"order": 6, "before": "OS chooses all CPU cores and default thread pools", "after": "Four threads with automatic fastest-cluster affinity", "cpu_effect": "Targets RK3588S Cortex-A76 cores and reduces migration", "quality_effect": "None"},
+        {"order": 7, "before": "One PyTorch execution option", "after": "TorchScript plus optional ONNX Runtime", "cpu_effect": "Allows board-specific backend selection", "quality_effect": "Numerically validated"},
+        {"order": 8, "before": "High default PNG compression", "after": "Low-compression PNG output", "cpu_effect": "Less end-to-end encoding work", "quality_effect": "Lossless pixels are unchanged"}
+      ],
+      "fidelity_checks": [
+        {"check": "Maximum floating-point error", "result": "4.17 x 10^-7", "interpretation": "Far below one 8-bit intensity step (1/255)"},
+        {"check": "Mean floating-point error", "result": "3.91 x 10^-8", "interpretation": "No material aggregate drift"},
+        {"check": "Changed PNG pixels", "result": "5 of 240,000", "interpretation": "0.0021% of pixels"},
+        {"check": "Largest saved-pixel difference", "result": "1 level in one channel", "interpretation": "Visually indistinguishable"},
+        {"check": "Export validation shapes", "result": "96x64, 320x240, 600x400", "interpretation": "Dynamic spatial dimensions verified"}
+      ]
+    }
+  },
+  "sources": [
+    {
+      "id": "benchmark_aggregate",
+      "label": "Measured CPU benchmark results",
+      "path": "report_support/benchmark_aggregate.csv",
+      "query": {
+        "engine": "duckdb",
+        "language": "sql",
+        "description": "Loads the reviewed per-thread backend benchmark and derives the four-thread headline comparison.",
+        "sql": "WITH benchmark AS (SELECT * FROM read_csv_auto('report_support/benchmark_aggregate.csv', header = true)) SELECT *, MAX(CASE WHEN threads = 4 AND backend = 'Original eager PyTorch' THEN median_ms END) OVER () AS baseline_4t_ms, MAX(CASE WHEN threads = 4 AND backend = 'Fused TorchScript' THEN median_ms END) OVER () AS torchscript_4t_ms FROM benchmark",
+        "tables_used": ["report_support/benchmark_aggregate.csv"],
+        "filters": ["600x400 RGB sample", "20 warm-up runs", "100 measured runs", "model-only latency"]
+      }
+    },
+    {
+      "id": "model_export",
+      "label": "TorchScript export validation",
+      "path": "model_info.json",
+      "query": {
+        "engine": "duckdb",
+        "language": "sql",
+        "description": "Reads the exported deployment parameter count and multi-resolution validation results.",
+        "sql": "SELECT parameters_after_fusion AS deployment_parameters, validation FROM read_json_auto('model_info.json')",
+        "tables_used": ["model_info.json"]
+      }
+    },
+    {
+      "id": "file_inventory",
+      "label": "Deployment artifact file inventory",
+      "path": "report_support/file_inventory.csv",
+      "query": {
+        "engine": "duckdb",
+        "language": "sql",
+        "description": "Loads exact artifact bytes and KiB with reduction versus the original checkpoint.",
+        "sql": "SELECT * FROM read_csv_auto('report_support/file_inventory.csv', header = true)",
+        "tables_used": ["report_support/file_inventory.csv"]
+      }
+    },
+    {
+      "id": "change_log",
+      "label": "Before-and-after deployment change log",
+      "path": "report_support/change_log.csv",
+      "query": {
+        "engine": "duckdb",
+        "language": "sql",
+        "description": "Loads the audited mapping from original behavior to deployment behavior.",
+        "sql": "SELECT * FROM read_csv_auto('report_support/change_log.csv', header = true) ORDER BY \"order\"",
+        "tables_used": ["report_support/change_log.csv"]
+      }
+    },
+    {
+      "id": "fidelity_checks",
+      "label": "Numerical and pixel fidelity checks",
+      "path": "report_support/fidelity_checks.csv",
+      "query": {
+        "engine": "duckdb",
+        "language": "sql",
+        "description": "Loads the reviewed numerical, saved-pixel, and dynamic-shape equivalence checks.",
+        "sql": "SELECT * FROM read_csv_auto('report_support/fidelity_checks.csv', header = true)",
+        "tables_used": ["report_support/fidelity_checks.csv"]
+      }
+    },
+    {"id": "model_code", "label": "Standalone SCI deployment implementation", "path": "model_def.py"},
+    {"id": "radxa_docs", "label": "Radxa ROCK 5A product documentation", "href": "https://docs.radxa.com/en/rock5/rock5a/getting-started/introduction"},
+    {"id": "sci_reference", "label": "Official SCI project", "href": "https://github.com/vis-opt-group/SCI"}
+  ]
+}

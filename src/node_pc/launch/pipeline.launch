@@ -1,21 +1,37 @@
 <launch>
   <arg name="rosbag" default="true" />
+  <arg name="rosbridge" default="true" />
+  <arg name="rosbridge_address" default="$(optenv ROSBRIDGE_ADDRESS 0.0.0.0)" />
+  <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
+  <arg name="ros_ip" default="$(env ROS_IP)" />
+  <arg name="ros_master_uri" default="$(env ROS_MASTER_URI)" />
+
+  <!-- Keep the address used by every child explicit. run_pipeline.sh loads
+       these values from config/network.env before roslaunch starts. -->
+  <env name="ROS_IP" value="$(arg ros_ip)" />
+  <env name="ROS_MASTER_URI" value="$(arg ros_master_uri)" />
+
+  <node pkg="node_pc" type="network_config_check.py" name="network_config_check"
+        output="screen" required="false" />
 
   <!-- Optional hardware bringup when not playing rosbag -->
   <include file="$(find livox_ros_driver)/launch/livox_lidar.launch" unless="$(arg rosbag)" />
   <include file="$(find spinnaker_camera_driver)/launch/camera.launch" unless="$(arg rosbag)" />
 
-  <!-- Shift -> merge -> colorize (from existing time_shift.launch) -->
+  <!-- Shift -> indexed stack -> per-frame filter -> timestamp-matched colorize. -->
   <include file="$(find node_pc)/launch/time_shift.launch" />
 
-  <!-- TF web republisher for rosbridge clients -->
-  <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" output="screen" />
+  <!-- Web-only components. Native TCPROS subscribers do not need either. -->
+  <group if="$(arg rosbridge)">
+    <node pkg="tf2_web_republisher" type="tf2_web_republisher" name="tf2_web_republisher" output="screen" />
+    <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_websocket" output="screen">
+      <param name="address" value="$(arg rosbridge_address)" />
+      <param name="port" value="$(arg rosbridge_port)" />
+    </node>
+  </group>
 
   <!-- IMU complementary filter -->
   <include file="$(find node_pc)/launch/imu_filter.launch" />
-
-  <!-- Rosbridge server -->
-  <node pkg="rosbridge_server" type="rosbridge_websocket" name="rosbridge_websocket" output="screen" />
 
   <!-- Static TF between map and livox_frame (adjust if you have a calibrated transform) -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="static_map_to_livox"

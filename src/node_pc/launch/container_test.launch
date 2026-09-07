@@ -1,0 +1,32 @@
+<launch>
+  <arg name="rosbridge" default="true" />
+  <arg name="rosbridge_port" default="9090" />
+  <arg name="rate" default="10.0" />
+  <arg name="point_count" default="10000" />
+  <arg name="ros_ip" default="$(env ROS_IP)" />
+  <arg name="ros_master_uri" default="$(env ROS_MASTER_URI)" />
+
+  <env name="ROS_IP" value="$(arg ros_ip)" />
+  <env name="ROS_MASTER_URI" value="$(arg ros_master_uri)" />
+
+  <node pkg="node_pc" type="network_config_check.py" name="network_config_check"
+        output="screen" required="false" />
+
+  <node pkg="node_pc" type="synthetic_pointcloud_publisher.py"
+        name="synthetic_pointcloud_publisher" output="screen">
+    <param name="topic" value="/merged_colored_cloud" />
+    <param name="frame_id" value="livox_frame" />
+    <param name="rate" value="$(arg rate)" />
+    <param name="point_count" value="$(arg point_count)" />
+  </node>
+
+  <group if="$(arg rosbridge)">
+    <node pkg="tf2_web_republisher" type="tf2_web_republisher"
+          name="tf2_web_republisher" output="screen" />
+    <node pkg="rosbridge_server" type="rosbridge_websocket"
+          name="rosbridge_websocket" output="screen">
+      <param name="address" value="0.0.0.0" />
+      <param name="port" value="$(arg rosbridge_port)" />
+    </node>
+  </group>
+</launch>

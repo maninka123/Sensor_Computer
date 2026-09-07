@@ -70,6 +70,8 @@
   <exec_depend>pcl_ros</exec_depend>
   <exec_depend>pcl_conversions</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>rosgraph</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

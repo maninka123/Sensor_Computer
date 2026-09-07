@@ -1,0 +1,9 @@
+order,before,after,cpu_effect,quality_effect
+1,Training model imported loss and calibration code,Inference-only module with no training dependency,Less initialization and package complexity,Training-only path removed
+2,BatchNorm executed after the middle convolution,BatchNorm folded into convolution weights and bias,One runtime operator and tensor pass removed,Equivalent up to floating-point rounding
+3,Python eager module dispatch,Scripted and frozen TorchScript graph,Lower dispatch overhead and constant folding,None beyond floating-point rounding
+4,Default contiguous NCHW image conversion,Channels-last tensor strides from HWC input,Avoids an extra layout conversion and suits Arm kernels,None
+5,Out-of-place temporary tensors,Safe in-place activation and clamp operations,Lower allocation and memory traffic,None beyond operation-order rounding
+6,OS chooses all CPU cores and default thread pools,Four threads with automatic fastest-cluster affinity,Targets RK3588S Cortex-A76 cores and reduces migration,None
+7,One PyTorch execution option,TorchScript plus optional ONNX Runtime,Allows board-specific backend selection,Numerically validated
+8,High default PNG compression,Low-compression PNG output,Less end-to-end encoding work,Lossless pixels are unchanged

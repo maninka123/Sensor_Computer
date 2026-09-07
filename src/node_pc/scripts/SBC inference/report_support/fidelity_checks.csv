@@ -1,0 +1,6 @@
+check,result,interpretation
+Maximum floating-point error,4.17 x 10^-7,Far below one 8-bit intensity step (1/255)
+Mean floating-point error,3.91 x 10^-8,No material aggregate drift
+Changed PNG pixels,"5 of 240,000",0.0021% of pixels
+Largest saved-pixel difference,1 level in one channel,Visually indistinguishable
+Export validation shapes,"96x64; 320x240; 600x400",Dynamic spatial dimensions verified

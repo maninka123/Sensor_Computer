@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(node_pc)
 
+option(NODE_PC_NATIVE_OPTIMIZATION
+  "Tune node_pc C++ binaries for the CPU they are compiled on" ON)
+
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
 
@@ -133,14 +136,41 @@ target_link_libraries(lidar_timestamp_shift_node ${catkin_LIBRARIES})
 add_executable(pointcloud_merge_node src/pointcloud_merge.cpp)
 target_link_libraries(pointcloud_merge_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 
+add_executable(pointcloud_voxel_filter_node src/pointcloud_voxel_filter.cpp)
+target_link_libraries(pointcloud_voxel_filter_node ${catkin_LIBRARIES})
+
 add_executable(pointcloud_colorize_node src/pointcloud_colorize.cpp)
 target_link_libraries(pointcloud_colorize_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+
+set(NODE_PC_NATIVE_TARGETS
+  lidar_timestamp_shift_node
+  pointcloud_merge_node
+  pointcloud_voxel_filter_node
+  pointcloud_colorize_node
+)
+foreach(target ${NODE_PC_NATIVE_TARGETS})
+  target_compile_options(${target} PRIVATE -O3 -DNDEBUG)
+  if(NODE_PC_NATIVE_OPTIMIZATION AND NOT CMAKE_CROSSCOMPILING)
+    target_compile_options(${target} PRIVATE -march=native)
+  endif()
+endforeach()
 
 catkin_install_python(PROGRAMS
   scripts/image_enhancer.py
   scripts/monitor_status.py
   scripts/Comapre_image_streams_debug.py
+  scripts/network_config_check.py
+  scripts/synthetic_pointcloud_publisher.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# Runtime-only SBC inference assets. Training checkpoints and reports are not
+# installed on deployed sensing units.
+install(FILES
+  "scripts/SBC inference/runtime.py"
+  "scripts/SBC inference/model_cpu.pt"
+  "scripts/SBC inference/model_cpu.onnx"
+  DESTINATION "${CATKIN_PACKAGE_SHARE_DESTINATION}/scripts/SBC inference"
 )
 
 #############
@@ -155,6 +185,7 @@ catkin_install_python(PROGRAMS
 install(TARGETS
   lidar_timestamp_shift_node
   pointcloud_merge_node
+  pointcloud_voxel_filter_node
   pointcloud_colorize_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

@@ -1,0 +1,37 @@
+digraph FinetuneModel {
+  rankdir=LR;
+  graph [fontsize=10, fontname="Helvetica"];
+  node [shape=box, style="rounded,filled", fillcolor="#f7f7f7", color="#555555", fontsize=10, fontname="Helvetica"];
+  edge [color="#777777"];
+  n_root [label="model\nFinetunemodel\nparams_local=0\nparams_total=258"];
+  n_enhance [label="enhance\nEnhanceNetwork\nparams_local=0\nparams_total=258"];
+  n_enhance_in_conv [label="enhance.in_conv\nSequential\nparams_local=0\nparams_total=84"];
+  n_enhance_in_conv_0 [label="enhance.in_conv.0\nConv2d\nparams_local=84\nparams_total=84\nout=(1, 3, 366, 484)"];
+  n_enhance_in_conv_1 [label="enhance.in_conv.1\nReLU\nparams_local=0\nparams_total=0\nout=(1, 3, 366, 484)"];
+  n_enhance_conv [label="enhance.conv\nSequential\nparams_local=0\nparams_total=90"];
+  n_enhance_conv_0 [label="enhance.conv.0\nConv2d\nparams_local=84\nparams_total=84\nout=(1, 3, 366, 484)"];
+  n_enhance_conv_1 [label="enhance.conv.1\nBatchNorm2d\nparams_local=6\nparams_total=6\nout=(1, 3, 366, 484)"];
+  n_enhance_conv_2 [label="enhance.conv.2\nReLU\nparams_local=0\nparams_total=0\nout=(1, 3, 366, 484)"];
+  n_enhance_blocks [label="enhance.blocks\nModuleList\nparams_local=0\nparams_total=90"];
+  n_enhance_out_conv [label="enhance.out_conv\nSequential\nparams_local=0\nparams_total=84"];
+  n_enhance_out_conv_0 [label="enhance.out_conv.0\nConv2d\nparams_local=84\nparams_total=84\nout=(1, 3, 366, 484)"];
+  n_enhance_out_conv_1 [label="enhance.out_conv.1\nSigmoid\nparams_local=0\nparams_total=0\nout=(1, 3, 366, 484)"];
+  n__criterion [label="_criterion\nLossFunction\nparams_local=0\nparams_total=0"];
+  n__criterion_l2_loss [label="_criterion.l2_loss\nMSELoss\nparams_local=0\nparams_total=0"];
+  n__criterion_smooth_loss [label="_criterion.smooth_loss\nSmoothLoss\nparams_local=0\nparams_total=0"];
+  n_root -> n_enhance;
+  n_enhance -> n_enhance_in_conv;
+  n_enhance_in_conv -> n_enhance_in_conv_0;
+  n_enhance_in_conv -> n_enhance_in_conv_1;
+  n_enhance -> n_enhance_conv;
+  n_enhance_conv -> n_enhance_conv_0;
+  n_enhance_conv -> n_enhance_conv_1;
+  n_enhance_conv -> n_enhance_conv_2;
+  n_enhance -> n_enhance_blocks;
+  n_enhance -> n_enhance_out_conv;
+  n_enhance_out_conv -> n_enhance_out_conv_0;
+  n_enhance_out_conv -> n_enhance_out_conv_1;
+  n_root -> n__criterion;
+  n__criterion -> n__criterion_l2_loss;
+  n__criterion -> n__criterion_smooth_loss;
+}

@@ -5,3 +5,11 @@ Rosbag files/
 __pycache__/
 *.pyc
 
+# Local deployment/build environments and generated report intermediates.
+src/node_pc/scripts/SBC inference/.venv/
+src/node_pc/scripts/SBC inference/outputs/
+src/node_pc/scripts/SBC inference/tmp/
+*:Zone.Identifier
+
+# Abandoned local catkin skeleton (contains only a host-specific absolute symlink).
+src/ws_livox_del/

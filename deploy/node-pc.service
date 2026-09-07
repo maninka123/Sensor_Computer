@@ -1,0 +1,22 @@
+[Unit]
+Description=Underground sensing and colourised point-cloud pipeline
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=pasindu
+WorkingDirectory=/home/pasindu/catkin_ws_actual
+
+# The single network file is authoritative for the device address and Master.
+EnvironmentFile=/home/pasindu/catkin_ws_actual/src/node_pc/config/network.env
+Environment="NODE_PC_NETWORK_CONFIG=/home/pasindu/catkin_ws_actual/src/node_pc/config/network.env"
+Environment="ROSBAG=false"
+Environment="ROSBRIDGE=true"
+
+ExecStart=/home/pasindu/catkin_ws_actual/run_pipeline.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

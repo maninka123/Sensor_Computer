@@ -1,0 +1,30 @@
+{
+  "source_checkpoint": "Model_V3.pt",
+  "parameters_after_fusion": 252,
+  "torch_version_used_for_export": "2.5.1+cu121",
+  "portable_targets": [
+    "linux-aarch64",
+    "linux-x86_64",
+    "windows-x86_64"
+  ],
+  "validation": [
+    {
+      "height": 64,
+      "width": 96,
+      "max_abs_error": 3.5762786865234375e-07,
+      "mean_abs_error": 3.3881498495702544e-08
+    },
+    {
+      "height": 240,
+      "width": 320,
+      "max_abs_error": 4.76837158203125e-07,
+      "mean_abs_error": 3.914476565114455e-08
+    },
+    {
+      "height": 400,
+      "width": 600,
+      "max_abs_error": 4.76837158203125e-07,
+      "mean_abs_error": 3.9418345920694264e-08
+    }
+  ]
+}

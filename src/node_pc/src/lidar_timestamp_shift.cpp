@@ -1,6 +1,6 @@
 /*
  * ROS node that shifts lidar PointCloud2 timestamps by a configurable offset.
- * Defaults: input /livox/lidar, output /livox/lidar_shifted, offset 32.43 seconds.
+ * Defaults: input /livox/lidar, output /livox/lidar_shifted, capture offset 32.43 ms.
  */
 
 #include <ros/ros.h>
@@ -16,7 +16,7 @@ public:
     // timestamp_offset: converts LiDAR device time to Unix/sim time
     pnh.param<double>("timestamp_offset", timestamp_offset_, 1739263380.384177);
     // capture_offset: compensates for sensor capture delay difference
-    pnh.param<double>("capture_offset", capture_offset_, 32.43);
+    pnh.param<double>("capture_offset", capture_offset_, 0.03243);
     pnh.param<bool>("verbose", verbose_, false);
 
     pub_ = nh.advertise<sensor_msgs::PointCloud2>(output_topic_, 10);
@@ -56,7 +56,7 @@ private:
   // timestamp_offset: converts LiDAR device-relative time to Unix/sim time (from rosbag analysis)
   double timestamp_offset_{1739263380.384177};
   // capture_offset: sensor capture delay difference to sync environmental events
-  double capture_offset_{32.43};
+  double capture_offset_{0.03243};
   bool verbose_{false};
   ros::Publisher pub_;
   ros::Subscriber sub_;

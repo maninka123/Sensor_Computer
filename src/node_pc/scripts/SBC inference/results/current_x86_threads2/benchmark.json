@@ -1,0 +1,37 @@
+{
+  "platform": "Windows-10-10.0.26200-SP0",
+  "machine": "AMD64",
+  "python": "3.10.14",
+  "torch": "2.5.1+cu121",
+  "threads": 2,
+  "cpu_affinity": "OS-managed",
+  "resolution": "600x400",
+  "runs": 100,
+  "speedup": 2.411183117470149,
+  "max_abs_output_error": 4.172325134277344e-07,
+  "mean_abs_output_error": 3.905691770000885e-08,
+  "onnx_max_abs_output_error": 4.76837158203125e-07,
+  "results": [
+    {
+      "model": "baseline_eager",
+      "median_ms": 4.426449988386594,
+      "mean_ms": 4.509218000457622,
+      "p95_ms": 5.013300018617883,
+      "fps_from_median": 225.9146726210934
+    },
+    {
+      "model": "optimized_torchscript",
+      "median_ms": 1.8358000088483095,
+      "mean_ms": 1.8745730008231476,
+      "p95_ms": 2.107300009811297,
+      "fps_from_median": 544.721644612776
+    },
+    {
+      "model": "optimized_onnx",
+      "median_ms": 4.107399989152327,
+      "mean_ms": 4.1610939998645335,
+      "p95_ms": 4.669599991757423,
+      "fps_from_median": 243.4630186105583
+    }
+  ]
+}

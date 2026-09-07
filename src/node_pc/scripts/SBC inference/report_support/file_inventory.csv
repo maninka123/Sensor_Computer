@@ -1,0 +1,4 @@
+artifact,path,bytes,kib,reduction_vs_checkpoint
+Original checkpoint,weights/Model_V3.pt,43967,42.9365,0.0000
+TorchScript,model_cpu.pt,5395,5.2686,0.8773
+ONNX,model_cpu.onnx,2607,2.5459,0.9407

@@ -1,0 +1,67 @@
+services:
+  surface:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.surface
+    image: minenet-surface:noetic
+    container_name: minenet-surface
+    hostname: surface
+    environment:
+      ROS_IP: 10.20.0.10
+      ROS_MASTER_URI: http://10.20.0.10:11311
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.ipv4.ip_local_port_range: "45200 45300"
+    ports:
+      - "11311:11311/tcp"
+      - "9090:9090/tcp"
+      - "45200-45300:45200-45300/tcp"
+    networks:
+      minenet:
+        ipv4_address: 10.20.0.10
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "rosnode list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  device:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.device
+    image: minenet-device:noetic
+    container_name: minenet-device
+    hostname: device
+    env_file:
+      - ../src/node_pc/config/network.env
+    environment:
+      NODE_PC_NETWORK_CONFIG: /catkin_ws/src/node_pc/config/network.env
+      ROSBRIDGE: "true"
+      ROSBRIDGE_PORT: "9090"
+      LINK_DELAY: 5ms
+      LINK_RATE: 25mbit
+      LINK_LOSS: "0.1%"
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.ipv4.ip_local_port_range: "45200 45300"
+    expose:
+      - "9090"
+      - "45200-45300"
+    volumes:
+      - ..:/catkin_ws:rw
+    working_dir: /catkin_ws
+    networks:
+      minenet:
+        ipv4_address: 10.20.0.21
+    restart: unless-stopped
+
+networks:
+  minenet:
+    name: minenet
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24

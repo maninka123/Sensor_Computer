@@ -1,0 +1,24 @@
+<launch>
+  <arg name="topic" default="/merged_colored_cloud" />
+  <arg name="frame_id" default="livox_frame" />
+  <arg name="rate" default="10.0" />
+  <arg name="point_count" default="10000" />
+  <arg name="source_frame_count" default="10" />
+  <arg name="ros_ip" default="$(env ROS_IP)" />
+  <arg name="ros_master_uri" default="$(env ROS_MASTER_URI)" />
+
+  <env name="ROS_IP" value="$(arg ros_ip)" />
+  <env name="ROS_MASTER_URI" value="$(arg ros_master_uri)" />
+
+  <node pkg="node_pc" type="network_config_check.py" name="network_config_check"
+        output="screen" required="false" />
+
+  <node pkg="node_pc" type="synthetic_pointcloud_publisher.py"
+        name="synthetic_pointcloud_publisher" output="screen">
+    <param name="topic" value="$(arg topic)" />
+    <param name="frame_id" value="$(arg frame_id)" />
+    <param name="rate" value="$(arg rate)" />
+    <param name="point_count" value="$(arg point_count)" />
+    <param name="source_frame_count" value="$(arg source_frame_count)" />
+  </node>
+</launch>

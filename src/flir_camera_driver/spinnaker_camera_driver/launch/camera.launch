@@ -27,9 +27,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
    <!-- Determine this using rosrun spinnaker_camera_driver list_cameras.
        If not specified, defaults to first camera found. -->
   <arg name="camera_name"               default="camera" />
-  <arg name="camera_serial"             default="0" />
+  <arg name="camera_serial"             default="24510177" />
   <arg name="calibrated"                default="0" />
-  <arg name="device_type"               default="USB3" /> <!-- USB3 or GigE -->
+  <arg name="device_type"               default="GigE" /> <!-- USB3 or GigE -->
 
   <!-- When unspecified, the driver will use the default framerate as given by the
       camera itself. Use the parameter 'control_frame_rate' to enable manual frame 
@@ -63,7 +63,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <group ns="$(arg camera_name)">
     <!-- Nodelet manager -->
     <node pkg="nodelet" type="nodelet" name="camera_nodelet_manager" args="manager" cwd="node" output="screen"/>
-->
     <!-- Camera nodelet -->
     <node pkg="nodelet" type="nodelet" name="spinnaker_camera_nodelet"
           args="load spinnaker_camera_driver/SpinnakerCameraNodelet camera_nodelet_manager" >

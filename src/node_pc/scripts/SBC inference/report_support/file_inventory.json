@@ -1,0 +1,8 @@
+{
+  "measured_on": "2026-09-07",
+  "files": [
+    {"artifact": "Original Model_V3 checkpoint", "path": "weights/Model_V3.pt", "bytes": 43967, "kib": 42.9365},
+    {"artifact": "Frozen TorchScript deployment", "path": "model_cpu.pt", "bytes": 5395, "kib": 5.2686},
+    {"artifact": "ONNX deployment", "path": "model_cpu.onnx", "bytes": 2607, "kib": 2.5459}
+  ]
+}

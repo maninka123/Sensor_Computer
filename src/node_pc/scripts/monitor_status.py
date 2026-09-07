@@ -138,6 +138,7 @@ class TopicMonitor:
                 ("/livox/lidar", PointCloud2, "Raw"),
                 ("/livox/lidar_shifted", PointCloud2, "Shifted"),
                 ("/livox/lidar_merged", PointCloud2, "Merged"),
+                ("/livox/lidar_filtered", PointCloud2, "Per-frame filtered"),
             ]),
             ("Camera", [
                 ("/camera/image_raw", Image, "Raw"),

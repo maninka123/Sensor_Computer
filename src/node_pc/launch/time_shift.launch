@@ -6,6 +6,9 @@
 
   <node pkg="node_pc" type="pointcloud_merge_node" name="pointcloud_merger" output="screen" />
 
+  <!-- Filter every indexed source frame independently, preserving timestamps. -->
+  <node pkg="node_pc" type="pointcloud_voxel_filter_node" name="pointcloud_voxel_filter" output="screen" />
+
   <node pkg="node_pc" type="image_enhancer.py" name="image_enhancer" output="screen" />
 
   <node pkg="node_pc" type="pointcloud_colorize_node" name="pointcloud_colorizer" output="screen" />
