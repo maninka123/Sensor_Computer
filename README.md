@@ -81,9 +81,108 @@ The fixed endpoints are:
 - Direct device ROSBridge: `ws://10.20.0.21:9090`
 - Docker-forwarded ROSBridge: `ws://10.20.0.10:9090`
 
+### Physical connection quick start
+
+Use the following addresses on the real sensor-to-surface network:
+
+| Machine | Interface address | Role |
+| --- | --- | --- |
+| Sensor computer | `10.20.0.21/24` | Publishes sensor topics and hosts ROSBridge |
+| Surface PC | `10.20.0.10/24` | Hosts the ROS 1 Master and native subscribers |
+
+Connect both machines to the same Ethernet switch or direct Ethernet link. The
+surface PC must actually own `10.20.0.10/24`; putting that address only in a ROS
+environment variable does not configure its network interface. On a Linux
+surface PC, a temporary direct-link address can be assigned with:
+
+```bash
+sudo ip address replace 10.20.0.10/24 dev <surface-interface>
+```
+
+Use the operating system's network settings or NetworkManager to make the
+surface address persistent. Verify the physical network in both directions
+before starting ROS:
+
+```bash
+# Run on the surface PC
+ping 10.20.0.21
+
+# Run on the sensor computer
+ping 10.20.0.10
+```
+
+Start the ROS Master on the surface PC and leave the terminal open:
+
+```bash
+source /opt/ros/noetic/setup.bash
+export ROS_IP=10.20.0.10
+export ROS_MASTER_URI=http://10.20.0.10:11311
+roscore
+```
+
+Confirm from the sensor computer that the Master is reachable, then start the
+hardware pipeline. Stop any existing loopback/rosbag test first so that it does
+not retain `ROS_IP=127.0.0.1` or occupy the sensors.
+
+```bash
+nc -vz 10.20.0.10 11311
+cd ~/catkin_ws_actual
+./check_hardware.sh
+./run_hardware.sh
+```
+
+For rosbag input instead of real sensors, start the processing pipeline and
+ROSBridge in one terminal, then start playback in another:
+
+```bash
+# Sensor terminal 1
+cd ~/catkin_ws_actual
+ROSBAG=true ROSBRIDGE=true ./run_pipeline.sh
+
+# Sensor terminal 2
+cd ~/catkin_ws_actual
+./run_rosbags.sh
+```
+
+For native ROS/TCPROS, configure every surface-PC terminal that uses ROS:
+
+```bash
+source /opt/ros/noetic/setup.bash
+export ROS_IP=10.20.0.10
+export ROS_MASTER_URI=http://10.20.0.10:11311
+rostopic list
+rostopic hz /merged_colored_cloud
+```
+
+For a WebSocket client, connect directly to:
+
+```text
+ws://10.20.0.21:9090
+```
+
+Confirm ROSBridge is listening on the sensor computer with:
+
+```bash
+ss -lnt | grep ':9090'
+```
+
+Native ROS requires bidirectional connectivity because nodes advertise their
+own callback addresses and dynamically allocated TCP ports. ROSBridge clients
+only need access to the sensor's fixed TCP port `9090`.
+
 ### Address configuration
 
-The single `network.env` file contains the device's literal static address and
+There are two separate layers of address configuration:
+
+1. The operating system assigns addresses to the physical interface. On this
+   device, NetworkManager's `Wired connection 2` profile keeps the DHCP address
+   (currently `129.94.238.20/22`) and also assigns the fixed secondary address
+   `10.20.0.21/24` to `eth0`.
+2. `network.env` tells ROS which already-assigned address to advertise and where
+   to find the ROS Master. Editing `network.env` alone does **not** add or change
+   an address on `eth0`.
+
+The repository's `network.env` contains the device's literal fixed address and
 the surface ROS Master address; neither is derived from the runtime host:
 
 | File | Device address | Master |
@@ -94,6 +193,53 @@ These private static addresses mirror the real deployment requirement: native
 ROS peers must be able to dial the literal address a node advertised. They are
 not merely a convenience for Docker. Use statically configured addresses or
 DHCP reservations on real links.
+
+Check the two device addresses and the private route with:
+
+```bash
+ip -brief address show dev eth0
+ip route get 10.20.0.10
+```
+
+The expected output includes both the DHCP address and `10.20.0.21/24`, while
+the route to the surface uses `src 10.20.0.21`.
+
+#### Changing the fixed sensor IP
+
+The NetworkManager address and `ROS_IP` represent the same sensor address, but
+they have different jobs. NetworkManager assigns it to `eth0`; `ROS_IP` tells
+ROS to advertise it. The values must match, with the subnet suffix used only by
+NetworkManager:
+
+```text
+NetworkManager address: 10.20.0.21/24
+ROS_IP:                 10.20.0.21
+```
+
+To change the fixed sensor address, update both layers. For example, replacing
+it with `10.20.0.22/24` requires:
+
+```bash
+sudo nmcli connection modify "Wired connection 2" \
+  ipv4.addresses 10.20.0.22/24
+sudo nmcli device reapply eth0
+```
+
+Then change `ROS_IP` in `src/node_pc/config/network.env`:
+
+```bash
+ROS_IP=10.20.0.22
+```
+
+Restart the pipeline after changing `network.env`. Also update every ROSBridge
+client URL to `ws://10.20.0.22:9090`. If the new address remains inside
+`10.20.0.0/24`, the surface PC may stay at `10.20.0.10/24` and
+`ROS_MASTER_URI` does not change. If the subnet or surface address changes,
+update the surface interface, `ROS_MASTER_URI`, routes, and firewall rules too.
+
+Reapplying a network profile can affect active connections. Do it from a local
+console when changing or removing the address used for remote access. The
+surface PC must remain in the same subnet, for example `10.20.0.10/24`.
 
 | Variable | Meaning | Repository default | Set it in |
 | --- | --- | --- | --- |
