@@ -123,7 +123,9 @@ class TopicMonitor:
 
         self.tracks = {}
         self.enhancement_flag = None
-        self.enhancement_topic = rospy.get_param("~image_enchantment_topic", "/image_enhancement")
+        self.enhancement_topic = rospy.get_param(
+            "~image_enchantment_topic", "/image_enhancement/status"
+        )
         self.enhancement_param = rospy.get_param("/pointcloud_colorizer/image_enchantment", None)
         
         # Sync tolerance from config (default 0.1 sec)

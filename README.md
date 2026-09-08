@@ -33,7 +33,7 @@ The software runs on a dedicated sensor computer and integrates various hardware
 The status monitor provides a live terminal dashboard for node health and sensor sync:
 - Per-topic rates (Hz) with stale detection.
 - Timestamp offset between `/livox/lidar_shifted` and `/camera/image_raw`.
-- Image enhancement status (topic + param).
+- Effective image-enhancement status and temperature protection state.
 
 Run it with ROS running and topics available:
 
@@ -42,7 +42,7 @@ rosrun node_pc monitor_status.py
 ```
 
 Optional parameters:
-- `~image_enchantment_topic` (default `/image_enhancement`)
+- `~image_enchantment_topic` (default `/image_enhancement/status`)
 - `/pointcloud_colorizer/image_enchantment` (used if set)
 - `/monitor_status/sync_tolerance` (default `0.1` seconds)
 
@@ -312,9 +312,49 @@ Camera -> SBC-optimized Model V3 enhancement per image
 `scripts/SBC inference/model_cpu.pt`. The ROS adapter converts BGR arrays
 directly to tensors without PIL or torchvision, runs one bounded inference
 worker, preserves the camera header, and publishes only genuine enhanced
-frames. `/image_enhancement` changes raw/enhanced mode at runtime. A mode
-change flushes incomplete LiDAR and image batches so one output can never mix
-the two modes.
+frames. The user requests raw/enhanced mode on `/image_enhancement`, while the
+latched `/image_enhancement/status` topic reports the effective mode actually
+used by enhancement, merging, and colourisation. A mode change flushes
+incomplete LiDAR and image batches so one output can never mix the two modes.
+
+For continuous operation, enhancement is capped at 5 FPS rather than attempting
+to process every camera frame. The existing enhancer process reads the SoC
+thermal sensor once every 30 seconds and publishes the value in degrees Celsius
+as `std_msgs/Float32` on the latched `/temperature` topic. This creates no extra
+ROS process and adds only one small sysfs read per interval.
+
+Thermal protection uses hysteresis. At or above 85 C, effective enhancement is
+disabled and the pipeline automatically continues with raw images. The user's
+ON request is retained; when the temperature reaches 70 C or below, enhancement
+is restored automatically. If the sensor cannot be read, enhancement is safely
+disabled while the raw pipeline continues. The thresholds, polling interval,
+sensor path, topic, and frame-rate cap are configurable under `image_enhancer`
+in `config/pipeline.yaml`:
+
+```yaml
+temperature_topic: "/temperature"
+temperature_path: "/sys/class/thermal/thermal_zone0/temp"
+temperature_poll_interval: 30.0
+thermal_protection: true
+thermal_shutdown_temperature: 85.0
+thermal_resume_temperature: 70.0
+max_fps: 5.0
+```
+
+User-interface integration and command-line checks:
+
+```bash
+# User request
+rostopic pub -1 /image_enhancement std_msgs/Bool "data: true"
+rostopic pub -1 /image_enhancement std_msgs/Bool "data: false"
+
+# Values to display to the user
+rostopic echo /image_enhancement/status
+rostopic echo /temperature
+```
+
+The UI toggle represents the user's request, but its ON/OFF indicator should
+read `/image_enhancement/status` so an automatic thermal shutdown is visible.
 
 Each point in `/merged_colored_cloud` carries:
 
@@ -325,7 +365,7 @@ Each point in `/merged_colored_cloud` carries:
 The cloud header is the newest retained source-frame timestamp. Every
 source-frame group is filtered independently and may match at most one distinct
 camera image within `sync_tolerance`. By default, a partial output is published
-when at least 5 of the 10 source groups match; unmatched groups and their points
+when at least 3 of the 10 source groups match; unmatched groups and their points
 are omitted. Set `allow_partial_batches: false` to restore strict 10/10 output.
 
 On a ROCK 5A, prepare the runtime with:

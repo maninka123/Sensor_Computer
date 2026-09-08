@@ -39,7 +39,7 @@ import rospy
 import torch
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from std_msgs.msg import Bool, UInt64
+from std_msgs.msg import Bool, Float32, UInt64
 
 try:
     from runtime import (
@@ -67,13 +67,32 @@ class ImageEnhancerNode:
         self.processed = 0
         self.dropped = 0
         self.warmed_up = False
+        self.last_scheduled_time = 0.0
+        self.shutdown_event = threading.Event()
 
         p = rospy.get_param
-        self.enabled = bool(p("~enabled", False))
+        self.user_enabled = bool(p("~enabled", False))
+        self.enabled = self.user_enabled
+        self.thermal_blocked = False
         self.input_topic = p("~input_topic", "/camera/image_raw")
         self.output_topic = p("~output_topic", "/camera/image_enhanced")
         self.enhancement_topic = p("~enhancement_topic", "/image_enhancement")
         self.status_topic = p("~status_topic", self.enhancement_topic + "/status")
+        self.temperature_topic = p("~temperature_topic", "/temperature")
+        self.temperature_path = Path(str(p(
+            "~temperature_path", "/sys/class/thermal/thermal_zone0/temp"
+        ))).expanduser()
+        self.temperature_poll_interval = max(
+            1.0, float(p("~temperature_poll_interval", 30.0))
+        )
+        self.thermal_protection = bool(p("~thermal_protection", True))
+        self.thermal_shutdown_temperature = float(p(
+            "~thermal_shutdown_temperature", 85.0
+        ))
+        self.thermal_resume_temperature = float(p(
+            "~thermal_resume_temperature", 70.0
+        ))
+        self.max_fps = max(0.0, float(p("~max_fps", 5.0)))
         self.backend = str(p("~backend", "torchscript")).lower()
         self.threads = int(p("~threads", default_threads()))
         self.affinity = str(p("~affinity", "auto"))
@@ -83,6 +102,11 @@ class ImageEnhancerNode:
 
         if self.backend not in ("torchscript", "onnx"):
             raise ValueError("~backend must be 'torchscript' or 'onnx'")
+        if self.thermal_resume_temperature >= self.thermal_shutdown_temperature:
+            raise ValueError(
+                "~thermal_resume_temperature must be lower than "
+                "~thermal_shutdown_temperature"
+            )
 
         default_model = SBC_DIR / ("model_cpu.onnx" if self.backend == "onnx" else "model_cpu.pt")
         self.model_path = Path(str(p("~model_path", str(default_model)))).expanduser()
@@ -94,6 +118,9 @@ class ImageEnhancerNode:
 
         self.pub = rospy.Publisher(self.output_topic, Image, queue_size=1)
         self.status_pub = rospy.Publisher(self.status_topic, Bool, queue_size=1, latch=True)
+        self.temperature_pub = rospy.Publisher(
+            self.temperature_topic, Float32, queue_size=1, latch=True
+        )
         self.processed_pub = rospy.Publisher("~processed_frames", UInt64, queue_size=1, latch=True)
         self.dropped_pub = rospy.Publisher("~dropped_frames", UInt64, queue_size=1, latch=True)
         self.sub = rospy.Subscriber(
@@ -106,16 +133,22 @@ class ImageEnhancerNode:
         self.toggle_sub = rospy.Subscriber(
             self.enhancement_topic, Bool, self.toggle_cb, queue_size=1
         )
+        self._sample_temperature()
         self.status_pub.publish(Bool(data=self.enabled))
         self._publish_counters()
 
         self.worker = threading.Thread(target=self._worker, name="image-inference", daemon=True)
         self.worker.start()
+        self.temperature_worker = threading.Thread(
+            target=self._temperature_loop, name="temperature-monitor", daemon=True
+        )
+        self.temperature_worker.start()
         rospy.on_shutdown(self.shutdown)
 
         rospy.loginfo(
             "SBC image enhancer ready: enabled=%s backend=%s model=%s threads=%d "
-            "affinity=%s input=%s output=%s",
+            "affinity=%s input=%s output=%s max_fps=%.2f thermal=%s "
+            "shutdown=%.1fC resume=%.1fC temperature_topic=%s",
             self.enabled,
             self.backend,
             self.model_path,
@@ -123,6 +156,11 @@ class ImageEnhancerNode:
             selected_cpus or "OS-managed",
             self.input_topic,
             self.output_topic,
+            self.max_fps,
+            self.thermal_protection,
+            self.thermal_shutdown_temperature,
+            self.thermal_resume_temperature,
+            self.temperature_topic,
         )
 
     def _publish_counters(self):
@@ -132,9 +170,11 @@ class ImageEnhancerNode:
     def toggle_cb(self, msg):
         with self.condition:
             requested = bool(msg.data)
-            if requested != self.enabled:
-                self.enabled = requested
+            self.user_enabled = requested
+            changed = self._update_effective_state_locked()
+            if changed:
                 self.generation += 1
+                self.last_scheduled_time = 0.0
                 if self.pending is not None:
                     self.pending = None
                     self.dropped += 1
@@ -142,13 +182,100 @@ class ImageEnhancerNode:
             enabled = self.enabled
         self.status_pub.publish(Bool(data=enabled))
         self._publish_counters()
-        rospy.loginfo("Image enhancement mode changed to %s", "ON" if enabled else "OFF")
+        rospy.loginfo(
+            "Image enhancement request=%s effective=%s%s",
+            "ON" if requested else "OFF",
+            "ON" if enabled else "OFF",
+            " (thermal protection active)" if requested and not enabled else "",
+        )
+
+    def _update_effective_state_locked(self):
+        effective = self.user_enabled and not self.thermal_blocked
+        changed = effective != self.enabled
+        self.enabled = effective
+        return changed
+
+    def _read_temperature(self):
+        value = float(self.temperature_path.read_text(encoding="ascii").strip())
+        if abs(value) >= 1000.0:
+            value /= 1000.0
+        if not -40.0 <= value <= 200.0:
+            raise ValueError("temperature is outside the valid range: %.3f" % value)
+        return value
+
+    def _sample_temperature(self):
+        try:
+            temperature = self._read_temperature()
+            sensor_error = None
+        except (OSError, ValueError) as exc:
+            temperature = float("nan")
+            sensor_error = exc
+
+        with self.condition:
+            was_blocked = self.thermal_blocked
+            if self.thermal_protection:
+                if sensor_error is not None:
+                    self.thermal_blocked = True
+                elif not self.thermal_blocked and temperature >= self.thermal_shutdown_temperature:
+                    self.thermal_blocked = True
+                elif self.thermal_blocked and temperature <= self.thermal_resume_temperature:
+                    self.thermal_blocked = False
+            else:
+                self.thermal_blocked = False
+
+            changed = self._update_effective_state_locked()
+            if changed:
+                self.generation += 1
+                self.last_scheduled_time = 0.0
+                if self.pending is not None:
+                    self.pending = None
+                    self.dropped += 1
+            enabled = self.enabled
+            blocked = self.thermal_blocked
+            self.condition.notify_all()
+
+        self.temperature_pub.publish(Float32(data=temperature))
+        self.status_pub.publish(Bool(data=enabled))
+        if sensor_error is not None:
+            rospy.logerr_throttle(
+                60.0,
+                "Cannot read CPU temperature from %s; enhancement safely disabled: %s",
+                self.temperature_path,
+                sensor_error,
+            )
+        elif blocked != was_blocked:
+            if blocked:
+                rospy.logwarn(
+                    "CPU temperature %.1fC reached %.1fC; enhancement disabled until %.1fC",
+                    temperature,
+                    self.thermal_shutdown_temperature,
+                    self.thermal_resume_temperature,
+                )
+            else:
+                rospy.loginfo(
+                    "CPU temperature %.1fC is at or below %.1fC; enhancement request restored",
+                    temperature,
+                    self.thermal_resume_temperature,
+                )
+
+    def _temperature_loop(self):
+        while not rospy.is_shutdown() and not self.shutdown_event.wait(
+            self.temperature_poll_interval
+        ):
+            self._sample_temperature()
 
     def image_cb(self, msg):
         with self.condition:
             if not self.enabled:
                 return
             self.received += 1
+            now = time.monotonic()
+            if self.max_fps > 0.0 and (
+                now - self.last_scheduled_time
+            ) < (1.0 / self.max_fps):
+                self.dropped += 1
+                return
+            self.last_scheduled_time = now
             if self.pending is not None:
                 self.dropped += 1
             self.pending = (msg, self.generation)
@@ -201,12 +328,15 @@ class ImageEnhancerNode:
                 )
 
     def shutdown(self):
+        self.shutdown_event.set()
         with self.condition:
             self.shutdown_requested = True
             self.pending = None
             self.condition.notify_all()
         if hasattr(self, "worker") and self.worker.is_alive():
             self.worker.join(timeout=2.0)
+        if hasattr(self, "temperature_worker") and self.temperature_worker.is_alive():
+            self.temperature_worker.join(timeout=2.0)
 
 
 def main():

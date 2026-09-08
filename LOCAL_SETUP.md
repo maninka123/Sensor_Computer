@@ -102,13 +102,13 @@ calibration target.
 
 The colourizer also uses partial synchronized batches by default. It collects
 ten LiDAR scans per approximately one-second window, performs one-to-one image
-matching within 50 ms, and publishes the matched subset when at least five
+matching within 50 ms, and publishes the matched subset when at least three
 source frames are available. Configure this under `pointcloud_colorizer` in
 `pipeline.yaml`:
 
 ```yaml
 allow_partial_batches: true
-min_synchronized_frames: 5
+min_synchronized_frames: 3
 sync_tolerance: 0.05
 partial_batch_timeout: 0.30
 ```
@@ -121,6 +121,25 @@ rostopic echo /merged_colored_cloud/input_frames
 rostopic echo /merged_colored_cloud/point_count
 rostopic echo /merged_colored_cloud/dropped_batches
 ```
+
+## Enhancement and CPU temperature
+
+Request enhancement through `/image_enhancement`. Read the effective state from
+`/image_enhancement/status`; this is the value followed by the merger and
+colourizer and is the correct value for a user-interface indicator.
+
+```bash
+rostopic pub -1 /image_enhancement std_msgs/Bool "data: true"
+rostopic echo /image_enhancement/status
+rostopic echo /temperature
+```
+
+`/temperature` is a latched `std_msgs/Float32` value in degrees Celsius. It is
+published at startup and every 30 seconds. Enhancement is capped at 5 FPS for
+continuous use. At 85 C it is automatically disabled and the pipeline continues
+using raw images; at 70 C it is restored if the user's most recent request is
+still ON. A temperature-read failure also safely selects raw mode. All values
+are adjustable under `image_enhancer` in `src/node_pc/config/pipeline.yaml`.
 
 The configured large timestamp offset matches the current calibration bags.
 Recalculate it for live hardware after a LiDAR clock reset or restart.

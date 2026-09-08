@@ -21,7 +21,8 @@ pointcloud_merger:
   # overlapping_merge: If true, uses sliding window (frame reused in multiple outputs)
   #                    If false, each frame is used only once (non-overlapping batches)
   overlapping_merge: false
-  reset_topic: "/image_enhancement"
+  # Follow the effective state after thermal protection, not only the user's request.
+  reset_topic: "/image_enhancement/status"
   image_enhancement: false
   verbose: false  # Set to true to show merge details
 
@@ -53,6 +54,16 @@ image_enhancer:
   output_topic: "/camera/image_enhanced"
   enhancement_topic: "/image_enhancement"
   status_topic: "/image_enhancement/status"
+  # Publish SoC temperature in degrees Celsius at startup and every 30 seconds.
+  temperature_topic: "/temperature"
+  temperature_path: "/sys/class/thermal/thermal_zone0/temp"
+  temperature_poll_interval: 30.0
+  # User ON remains requested while thermal protection temporarily forces raw mode.
+  thermal_protection: true
+  thermal_shutdown_temperature: 85.0
+  thermal_resume_temperature: 70.0
+  # Enough images for the three-frame colourizer minimum without enhancing all 35 FPS.
+  max_fps: 5.0
   backend: "torchscript"
   threads: 4
   affinity: "auto"
@@ -65,7 +76,8 @@ pointcloud_colorizer:
   output_topic: "/merged_colored_cloud"
   image_topic: "/camera/image_raw"
   enhanced_image_topic: "/camera/image_enhanced"
-  image_enchantment_topic: "/image_enhancement"   # std_msgs/Bool to toggle enhancement
+  # Effective, thermally protected state published by image_enhancer.
+  image_enchantment_topic: "/image_enhancement/status"
   image_enchantment: 0  # 0=off, 1=use enhanced image if available
   queue_size: 10
   image_history_size: 100
@@ -74,7 +86,7 @@ pointcloud_colorizer:
   # Publish the synchronized subset of each ten-scan batch. Raw mode normally
   # retains all ten; enhanced mode may retain fewer when inference drops frames.
   allow_partial_batches: true
-  min_synchronized_frames: 5
+  min_synchronized_frames: 3
   # Wait after a filtered cloud arrives before finalizing an incomplete batch.
   partial_batch_timeout: 0.30  # wall seconds
   matched_frames_topic: "/merged_colored_cloud/matched_frames"
