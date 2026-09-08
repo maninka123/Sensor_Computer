@@ -5,6 +5,13 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_DIR="$SCRIPT_DIR"
 NETWORK_CONFIG="${NODE_PC_NETWORK_CONFIG:-$WS_DIR/src/node_pc/config/network.env}"
 
+# PyTorch 1.12 on this ARM board otherwise fails with "cannot allocate memory
+# in static TLS block" when ROS loads other shared libraries first.
+SYSTEM_GOMP=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+if [[ -r "$SYSTEM_GOMP" && ":${LD_PRELOAD:-}:" != *":$SYSTEM_GOMP:"* ]]; then
+  export LD_PRELOAD="$SYSTEM_GOMP${LD_PRELOAD:+:$LD_PRELOAD}"
+fi
+
 if [ ! -r "$NETWORK_CONFIG" ]; then
   echo "[pipeline] ERROR: network config is not readable: $NETWORK_CONFIG" >&2
   exit 1
@@ -43,7 +50,7 @@ else
   echo "[pipeline] WARNING: devel/setup.bash not found; did you run catkin_make?"
 fi
 
-ROSBAG_MODE="${ROSBAG:-true}"
+ROSBAG_MODE="${ROSBAG:-false}"
 ROSBRIDGE_MODE="${ROSBRIDGE:-true}"
 ROSBRIDGE_ADDRESS="${ROSBRIDGE_ADDRESS:-0.0.0.0}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
@@ -56,8 +63,8 @@ fi
 echo "[pipeline] Network: ROS_IP=${ROS_IP}, ROS_MASTER_URI=${ROS_MASTER_URI}"
 echo "[pipeline] ROSBridge: ws://${ROS_IP}:${ROSBRIDGE_PORT} (bind ${ROSBRIDGE_ADDRESS})"
 echo "[pipeline] Starting full pipeline launch (rosbag=${ROSBAG_MODE}, rosbridge=${ROSBRIDGE_MODE})"
-echo "  - rosbag=true  : run shift/merge/colorize + imu filter"
-echo "  - rosbag=false : also start livox_ros_driver and spinnaker_camera_driver"
+echo "  - rosbag=false : start the Livox/FLIR drivers and the processing pipeline"
+echo "  - rosbag=true  : skip sensor drivers; raw topics come from rosbag playback"
 echo "  - rosbridge=true: also start rosbridge and the TF web republisher"
 
 exec roslaunch node_pc pipeline.launch \
@@ -66,4 +73,5 @@ exec roslaunch node_pc pipeline.launch \
   rosbridge_address:="${ROSBRIDGE_ADDRESS}" \
   rosbridge_port:="${ROSBRIDGE_PORT}" \
   ros_ip:="${ROS_IP}" \
-  ros_master_uri:="${ROS_MASTER_URI}"
+  ros_master_uri:="${ROS_MASTER_URI}" \
+  "$@"

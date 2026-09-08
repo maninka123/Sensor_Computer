@@ -1,0 +1,13 @@
+mode,process,mean_cpu_percent,mean_rss_mib,input_hz,estimated_cpu_ms_per_input
+off,LiDAR timestamp shift,5.880,19.491,9.790,6.006
+off,Point-cloud merger,7.480,23.083,9.830,7.609
+off,Voxel/radial filter,41.960,91.379,0.999,420.015
+off,Low-light enhancer,8.880,197.992,33.807,2.627
+off,Point-cloud colouriser,12.640,86.182,0.999,126.525
+off,IMU complementary filter,2.760,18.895,198.723,0.139
+on,LiDAR timestamp shift,11.963,19.625,9.857,12.137
+on,Point-cloud merger,15.029,24.004,9.857,15.247
+on,Voxel/radial filter,71.475,91.637,0.966,740.131
+on,Low-light enhancer,179.641,340.002,33.966,52.888
+on,Point-cloud colouriser,13.396,90.933,0.966,138.717
+on,IMU complementary filter,5.498,18.895,199.568,0.275

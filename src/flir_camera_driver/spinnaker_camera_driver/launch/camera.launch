@@ -27,7 +27,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
    <!-- Determine this using rosrun spinnaker_camera_driver list_cameras.
        If not specified, defaults to first camera found. -->
   <arg name="camera_name"               default="camera" />
-  <arg name="camera_serial"             default="24510177" />
+  <arg name="camera_serial"             default="24510717" />
   <arg name="calibrated"                default="0" />
   <arg name="device_type"               default="GigE" /> <!-- USB3 or GigE -->
 
@@ -35,7 +35,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
       camera itself. Use the parameter 'control_frame_rate' to enable manual frame 
       rate control, and 'frame_rate' to set the frame rate value. -->
   <arg name="control_frame_rate"        default="True" />
-  <arg name="frame_rate"                default="30" />
+  <arg name="frame_rate"                default="35" />
 
   <!-- Disabling ISP will dramatically increase frame-rate. However, it can only be 
       disabled when using Bayer encoding (e.g. BayerRG8)-->
@@ -70,6 +70,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
       <param name="frame_id"                        value="$(arg camera_name)" />
       <param name="serial"                          value="$(arg camera_serial)" />
       <param name="device_type"                     value="$(arg device_type)" />
+      <param name="timeout"                         value="5.0" />
 
       <!-- Frame rate -->
       <param name="acquisition_frame_rate_enable"   value="$(arg control_frame_rate)" />

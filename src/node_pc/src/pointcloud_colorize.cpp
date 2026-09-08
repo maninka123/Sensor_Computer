@@ -22,6 +22,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/point_cloud2_iterator.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/UInt32.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 
@@ -40,9 +41,18 @@ public:
     pnh.param<int>("queue_size", queue_size_, 10);
     pnh.param<int>("image_history_size", image_history_size_, 100);
     pnh.param<int>("max_pending_clouds", max_pending_clouds_, 2);
+    pnh.param<bool>("allow_partial_batches", allow_partial_batches_, true);
+    pnh.param<int>("min_synchronized_frames", min_synchronized_frames_, 5);
+    pnh.param<double>("partial_batch_timeout", partial_batch_timeout_, 0.30);
+    pnh.param<std::string>("matched_frames_topic", matched_frames_topic_, output_topic_ + "/matched_frames");
+    pnh.param<std::string>("input_frames_topic", input_frames_topic_, output_topic_ + "/input_frames");
+    pnh.param<std::string>("point_count_topic", point_count_topic_, output_topic_ + "/point_count");
+    pnh.param<std::string>("dropped_batches_topic", dropped_batches_topic_, output_topic_ + "/dropped_batches");
     pnh.param<bool>("verbose", verbose_, false);
     image_history_size_ = std::max(10, image_history_size_);
     max_pending_clouds_ = std::max(1, max_pending_clouds_);
+    min_synchronized_frames_ = std::max(1, min_synchronized_frames_);
+    partial_batch_timeout_ = std::max(0.0, partial_batch_timeout_);
 
     loadCameraParams(pnh);
     cacheProjectionParams();
@@ -51,6 +61,10 @@ public:
     raw_image_sub_ = nh.subscribe(image_topic_, queue_size_, &PointCloudColorizer::rawImageCallback, this);
     enhanced_image_sub_ = nh.subscribe(enhanced_image_topic_, queue_size_, &PointCloudColorizer::enhancedImageCallback, this);
     pub_ = nh.advertise<sensor_msgs::PointCloud2>(output_topic_, 1);
+    matched_frames_pub_ = nh.advertise<std_msgs::UInt32>(matched_frames_topic_, 1, true);
+    input_frames_pub_ = nh.advertise<std_msgs::UInt32>(input_frames_topic_, 1, true);
+    point_count_pub_ = nh.advertise<std_msgs::UInt32>(point_count_topic_, 1, true);
+    dropped_batches_pub_ = nh.advertise<std_msgs::UInt32>(dropped_batches_topic_, 1, true);
     if (!image_enhancement_topic_.empty())
     {
       enhancement_sub_ = nh.subscribe(image_enhancement_topic_, 1, &PointCloudColorizer::enhancementCallback, this);
@@ -59,7 +73,11 @@ public:
     ROS_INFO_STREAM("Frame-aware colorizer: cloud=" << input_topic_
                     << " raw=" << image_topic_ << " enhanced=" << enhanced_image_topic_
                     << " output=" << output_topic_ << " sync_tolerance=" << sync_tolerance_
+                    << " s partial=" << (allow_partial_batches_ ? "on" : "off")
+                    << " min_frames=" << min_synchronized_frames_
+                    << " timeout=" << partial_batch_timeout_
                     << " s mode=" << (enhancementEnabled() ? "enhanced" : "raw"));
+    publishStatus(0, 0, 0);
   }
 
 private:
@@ -87,6 +105,12 @@ private:
     {
       return ros::Time(stamp_sec, stamp_nsec);
     }
+  };
+
+  struct PendingCloud
+  {
+    sensor_msgs::PointCloud2ConstPtr cloud;
+    ros::WallTime received;
   };
 
   bool enhancementEnabled() const
@@ -197,6 +221,14 @@ private:
   void pushImage(std::deque<sensor_msgs::ImageConstPtr>& buffer,
                  const sensor_msgs::ImageConstPtr& msg)
   {
+    if (!buffer.empty() && msg->header.stamp < buffer.back()->header.stamp)
+    {
+      // Rosbag loops and sensor-clock resets must not mix images or pending
+      // clouds from two different passes through the time domain.
+      buffer.clear();
+      pending_clouds_.clear();
+      ROS_WARN_STREAM("Image timestamp jumped backward; cleared fusion history");
+    }
     buffer.push_back(msg);
     while (static_cast<int>(buffer.size()) > image_history_size_)
     {
@@ -206,20 +238,28 @@ private:
 
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
   {
-    pending_clouds_.push_back(msg);
+    pending_clouds_.push_back(PendingCloud{msg, ros::WallTime::now()});
+    processPending(false);
     while (static_cast<int>(pending_clouds_.size()) > max_pending_clouds_)
     {
-      ROS_WARN_STREAM("Dropping oldest fused cloud because synchronized images did not arrive in time");
-      pending_clouds_.pop_front();
+      const std::size_t before = pending_clouds_.size();
+      processPending(true);
+      if (pending_clouds_.size() == before)
+      {
+        ++dropped_batches_;
+        publishStatus(0, 0, 0);
+        ROS_WARN_STREAM("Dropping oldest fusion batch after forced finalization failed");
+        pending_clouds_.pop_front();
+      }
     }
-    processPending();
   }
 
-  void processPending()
+  void processPending(bool force_front = false)
   {
     while (!pending_clouds_.empty())
     {
-      const sensor_msgs::PointCloud2ConstPtr cloud = pending_clouds_.front();
+      const PendingCloud pending = pending_clouds_.front();
+      const sensor_msgs::PointCloud2ConstPtr cloud = pending.cloud;
       std::vector<SourceGroup> groups;
       if (!readGroups(*cloud, groups))
       {
@@ -252,12 +292,45 @@ private:
         return;  // Keep this cloud pending until another image arrives.
       }
 
+      const bool complete = images.size() == groups.size();
+      const bool expired = partialReady(groups, batch_enhanced) ||
+          (ros::WallTime::now() - pending.received).toSec() >= partial_batch_timeout_ ||
+          force_front;
+      if (!complete && !expired)
+      {
+        return;
+      }
+      if (!complete && (!allow_partial_batches_ ||
+          static_cast<int>(images.size()) < min_synchronized_frames_))
+      {
+        ++dropped_batches_;
+        publishStatus(groups.size(), images.size(), 0);
+        ROS_WARN_STREAM("Dropping fusion batch with " << images.size() << "/"
+                        << groups.size() << " synchronized frames (minimum "
+                        << min_synchronized_frames_ << ")");
+        pending_clouds_.pop_front();
+        force_front = false;
+        continue;
+      }
+
+      std::vector<SourceGroup> matched_groups;
+      matched_groups.reserve(images.size());
+      for (const auto& group : groups)
+      {
+        if (images.count(group.index) != 0)
+        {
+          matched_groups.push_back(group);
+        }
+      }
+
       sensor_msgs::PointCloud2 output;
-      if (colorize(*cloud, groups, images, output))
+      if (colorize(*cloud, matched_groups, images, output))
       {
         pub_.publish(output);
+        publishStatus(groups.size(), matched_groups.size(), output.width * output.height);
       }
       pending_clouds_.pop_front();
+      force_front = false;
     }
   }
 
@@ -345,51 +418,126 @@ private:
     const auto& buffer = batch_enhanced ? enhanced_images_ : raw_images_;
     if (buffer.empty())
     {
-      return false;
+      return true;
     }
 
-    std::set<const sensor_msgs::Image*> used_images;
-    for (const auto& group : groups)
+    // Ordered dynamic programming produces the maximum number of one-to-one
+    // matches inside the tolerance. For equal match counts, it minimizes the
+    // total timestamp error. The batch is tiny (normally 10 x <=100), so this
+    // is both deterministic and inexpensive.
+    std::vector<sensor_msgs::ImageConstPtr> candidates(buffer.begin(), buffer.end());
+    std::sort(candidates.begin(), candidates.end(),
+        [](const sensor_msgs::ImageConstPtr& lhs, const sensor_msgs::ImageConstPtr& rhs) {
+          return lhs->header.stamp < rhs->header.stamp;
+        });
+    const std::size_t n = groups.size();
+    const std::size_t m = candidates.size();
+    std::vector<std::vector<int> > counts(n + 1, std::vector<int>(m + 1, 0));
+    std::vector<std::vector<double> > errors(n + 1, std::vector<double>(m + 1, 0.0));
+    std::vector<std::vector<char> > actions(n, std::vector<char>(m, 'g'));
+    for (int i = static_cast<int>(n) - 1; i >= 0; --i)
     {
-      sensor_msgs::ImageConstPtr best;
-      double best_delta = std::numeric_limits<double>::infinity();
-      for (const auto& image : buffer)
+      for (int j = static_cast<int>(m) - 1; j >= 0; --j)
       {
-        if (used_images.count(image.get()) != 0)
+        int best_count = counts[i + 1][j];
+        double best_error = errors[i + 1][j];
+        char best_action = 'g';
+        if (counts[i][j + 1] > best_count ||
+            (counts[i][j + 1] == best_count && errors[i][j + 1] < best_error))
         {
-          continue;
+          best_count = counts[i][j + 1];
+          best_error = errors[i][j + 1];
+          best_action = 'i';
         }
-        const double delta = std::fabs((image->header.stamp - group.stamp()).toSec());
-        if (delta < best_delta)
+        const double delta = std::fabs(
+            (candidates[j]->header.stamp - groups[i].stamp()).toSec());
+        if (delta <= sync_tolerance_)
         {
-          best_delta = delta;
-          best = image;
+          const int match_count = 1 + counts[i + 1][j + 1];
+          const double match_error = delta + errors[i + 1][j + 1];
+          if (match_count > best_count ||
+              (match_count == best_count && match_error < best_error))
+          {
+            best_count = match_count;
+            best_error = match_error;
+            best_action = 'm';
+          }
         }
+        counts[i][j] = best_count;
+        errors[i][j] = best_error;
+        actions[i][j] = best_action;
       }
-      if (!best || best_delta > sync_tolerance_)
+    }
+
+    std::size_t i = 0;
+    std::size_t j = 0;
+    while (i < n && j < m)
+    {
+      const char action = actions[i][j];
+      if (action == 'g')
       {
-        if (verbose_)
-        {
-          ROS_WARN_STREAM_THROTTLE(2.0, "Waiting for "
-              << (batch_enhanced ? "enhanced" : "raw")
-              << " image for source frame " << group.index
-              << " (closest delta=" << best_delta << " s)");
-        }
-        return false;
+        ++i;
+        continue;
+      }
+      if (action == 'i')
+      {
+        ++j;
+        continue;
       }
       try
       {
-        selected[group.index] = cv_bridge::toCvShare(best, sensor_msgs::image_encodings::BGR8);
-        used_images.insert(best.get());
+        selected[groups[i].index] = cv_bridge::toCvShare(
+            candidates[j], sensor_msgs::image_encodings::BGR8);
       }
       catch (const cv_bridge::Exception& error)
       {
-        ROS_WARN_STREAM("Cannot decode synchronized image for frame " << group.index
+        ROS_WARN_STREAM("Cannot decode synchronized image for frame " << groups[i].index
                         << ": " << error.what());
         return false;
       }
+      ++i;
+      ++j;
+    }
+    if (verbose_ && selected.size() < groups.size())
+    {
+      ROS_INFO_STREAM_THROTTLE(2.0, "Currently matched " << selected.size() << "/"
+                               << groups.size() << " source frames");
     }
     return true;
+  }
+
+  bool partialReady(const std::vector<SourceGroup>& groups, bool batch_enhanced) const
+  {
+    const auto& buffer = batch_enhanced ? enhanced_images_ : raw_images_;
+    if (buffer.empty() || groups.empty())
+    {
+      return false;
+    }
+    ros::Time newest_image = buffer.front()->header.stamp;
+    for (const auto& image : buffer)
+    {
+      newest_image = std::max(newest_image, image->header.stamp);
+    }
+    ros::Time newest_source = groups.front().stamp();
+    for (const auto& group : groups)
+    {
+      newest_source = std::max(newest_source, group.stamp());
+    }
+    return newest_image >= newest_source + ros::Duration(sync_tolerance_);
+  }
+
+  void publishStatus(std::size_t input_frames, std::size_t matched_frames,
+                     std::size_t point_count) const
+  {
+    std_msgs::UInt32 value;
+    value.data = static_cast<std::uint32_t>(input_frames);
+    input_frames_pub_.publish(value);
+    value.data = static_cast<std::uint32_t>(matched_frames);
+    matched_frames_pub_.publish(value);
+    value.data = static_cast<std::uint32_t>(point_count);
+    point_count_pub_.publish(value);
+    value.data = dropped_batches_;
+    dropped_batches_pub_.publish(value);
   }
 
   static float packRgb(std::uint8_t red, std::uint8_t green, std::uint8_t blue)
@@ -446,6 +594,14 @@ private:
     }
 
     output.header = input.header;
+    if (!groups.empty())
+    {
+      output.header.stamp = groups.front().stamp();
+      for (const auto& group : groups)
+      {
+        output.header.stamp = std::max(output.header.stamp, group.stamp());
+      }
+    }
     sensor_msgs::PointCloud2Modifier modifier(output);
     // Keep both acquisition clocks in the final cloud. This lets consumers
     // audit which LiDAR frame and synchronized camera image coloured every
@@ -514,11 +670,19 @@ private:
   std::string image_topic_;
   std::string enhanced_image_topic_;
   std::string image_enhancement_topic_;
+  std::string matched_frames_topic_;
+  std::string input_frames_topic_;
+  std::string point_count_topic_;
+  std::string dropped_batches_topic_;
   int image_enhancement_{0};
   double sync_tolerance_{0.05};
   int queue_size_{10};
   int image_history_size_{100};
   int max_pending_clouds_{2};
+  bool allow_partial_batches_{true};
+  int min_synchronized_frames_{5};
+  double partial_batch_timeout_{0.30};
+  std::uint32_t dropped_batches_{0};
   bool verbose_{false};
 
   cv::Mat camera_matrix_;
@@ -532,13 +696,17 @@ private:
 
   std::deque<sensor_msgs::ImageConstPtr> raw_images_;
   std::deque<sensor_msgs::ImageConstPtr> enhanced_images_;
-  std::deque<sensor_msgs::PointCloud2ConstPtr> pending_clouds_;
+  std::deque<PendingCloud> pending_clouds_;
 
   ros::Subscriber cloud_sub_;
   ros::Subscriber raw_image_sub_;
   ros::Subscriber enhanced_image_sub_;
   ros::Subscriber enhancement_sub_;
   ros::Publisher pub_;
+  ros::Publisher matched_frames_pub_;
+  ros::Publisher input_frames_pub_;
+  ros::Publisher point_count_pub_;
+  ros::Publisher dropped_batches_pub_;
 };
 
 int main(int argc, char** argv)

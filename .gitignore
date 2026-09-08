@@ -1,5 +1,6 @@
 build/
 devel/
+.deps/
 Rosbag files/
 
 __pycache__/
@@ -13,3 +14,9 @@ src/node_pc/scripts/SBC inference/tmp/
 
 # Abandoned local catkin skeleton (contains only a host-specific absolute symlink).
 src/ws_livox_del/
+
+# Only image_proc is vendored from ros-perception/image_pipeline. Ignore the
+# unused sibling packages and nested clone metadata in a developer checkout.
+src/image_pipeline/*
+!src/image_pipeline/image_proc/
+!src/image_pipeline/image_proc/**

@@ -14,7 +14,7 @@ public:
     pnh.param<std::string>("input_topic", input_topic_, "/livox/lidar");
     pnh.param<std::string>("output_topic", output_topic_, "/livox/lidar_shifted");
     // timestamp_offset: converts LiDAR device time to Unix/sim time
-    pnh.param<double>("timestamp_offset", timestamp_offset_, 1739263380.384177);
+    pnh.param<double>("timestamp_offset", timestamp_offset_, 1739510486.944657);
     // capture_offset: compensates for sensor capture delay difference
     pnh.param<double>("capture_offset", capture_offset_, 0.03243);
     pnh.param<bool>("verbose", verbose_, false);
@@ -34,9 +34,10 @@ private:
   {
     sensor_msgs::PointCloud2 shifted = *msg;
     // Convert LiDAR device time to Unix/sim time using timestamp_offset,
-    // then subtract capture_offset to sync environmental events with camera
-    // new_stamp = header.stamp + timestamp_offset - capture_offset
-    double new_time = msg->header.stamp.toSec() + timestamp_offset_ - capture_offset_;
+    // then add capture_offset because the header refers to the first point and
+    // the represented environmental event occurs later.
+    // new_stamp = header.stamp + timestamp_offset + capture_offset
+    double new_time = msg->header.stamp.toSec() + timestamp_offset_ + capture_offset_;
     if (new_time < 0.0)
     {
       new_time = 0.0;
@@ -54,7 +55,7 @@ private:
   std::string input_topic_;
   std::string output_topic_;
   // timestamp_offset: converts LiDAR device-relative time to Unix/sim time (from rosbag analysis)
-  double timestamp_offset_{1739263380.384177};
+  double timestamp_offset_{1739510486.944657};
   // capture_offset: sensor capture delay difference to sync environmental events
   double capture_offset_{0.03243};
   bool verbose_{false};

@@ -1,0 +1,13 @@
+mode,process,input_hz,output_hz,mean_cpu_percent,estimated_cpu_ms_per_input,estimated_cpu_ms_per_output,successful_output_available
+off,LiDAR timestamp shift,9.790,9.830,5.880,6.006,5.982,yes
+off,Point-cloud merger,9.830,0.999,7.480,7.609,74.874,yes
+off,Voxel/radial filter,0.999,0.999,41.960,420.015,420.015,yes
+off,Low-light enhancer,33.807,0.000,8.880,2.627,N/A,no
+off,Point-cloud colouriser,0.999,0.919,12.640,126.525,137.527,yes
+off,IMU complementary filter,198.723,198.723,2.760,0.139,0.139,yes
+on,LiDAR timestamp shift,9.857,9.857,11.963,12.137,12.137,yes
+on,Point-cloud merger,9.857,0.966,15.029,15.247,155.627,yes
+on,Voxel/radial filter,0.966,0.966,71.475,740.131,740.131,yes
+on,Low-light enhancer,33.966,4.462,179.641,52.888,402.582,yes
+on,Point-cloud colouriser,0.966,0.300,13.396,138.717,446.977,yes
+on,IMU complementary filter,199.568,199.568,5.498,0.275,0.275,yes

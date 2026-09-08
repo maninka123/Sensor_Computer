@@ -1,0 +1,153 @@
+subscribed to [/camera/image_raw]
+subscribed to [/camera/image_enhanced]
+subscribed to [/livox/imu]
+subscribed to [/livox/lidar]
+subscribed to [/livox/lidar_shifted]
+subscribed to [/livox/lidar_merged]
+subscribed to [/livox/lidar_filtered]
+subscribed to [/merged_colored_cloud]
+       topic            rate   min_delta   max_delta   std_dev    window
+========================================================================
+/camera/image_raw      35.19   0.0201      0.04432     0.006423   38    
+/livox/imu             219.7   0.0         0.1039      0.01968    38    
+/livox/lidar           9.885   0.08642     0.114       0.008755   201   
+/livox/lidar_shifted   10.04   0.09168     0.1109      0.007005   201   
+
+       topic            rate    min_delta   max_delta   std_dev    window
+=========================================================================
+/camera/image_raw      35.04    0.0201      0.04432     0.006456   73    
+/livox/imu             209.7    0.0         0.1061      0.02038    73    
+/livox/lidar           9.984    0.08642     0.114       0.007289   400   
+/livox/lidar_shifted   10.06    0.09082     0.1109      0.006216   400   
+/livox/lidar_merged    0.9644   1.037       1.037       0.0        20    
+
+        topic            rate    min_delta   max_delta   std_dev    window
+==========================================================================
+/camera/image_raw       35.06    0.01007     0.04432     0.006811   108   
+/livox/imu              210.0    0.0         0.1062      0.02026    108   
+/livox/lidar            10.0     0.08069     0.1184      0.008196   610   
+/livox/lidar_shifted    10.05    0.09077     0.1184      0.007698   610   
+/livox/lidar_merged     0.9955   0.9722      1.037       0.03239    30    
+/livox/lidar_filtered   0.9856   1.015       1.015       0.0        30    
+
+        topic            rate    min_delta   max_delta   std_dev    window
+==========================================================================
+/camera/image_raw       35.08    0.01007     0.04432     0.006315   143   
+/livox/imu              207.4    0.0         0.1062      0.0205     143   
+/livox/lidar            10.01    0.08069     0.1184      0.007283   830   
+/livox/lidar_shifted    9.994    0.09077     0.1184      0.007844   830   
+/livox/lidar_merged     0.9902   0.9722      1.037       0.02752    41    
+/livox/lidar_filtered   1.01     0.9651      1.015       0.02473    41    
+
+        topic            rate    min_delta   max_delta   std_dev    window
+==========================================================================
+/camera/image_raw       35.05    0.01007     0.04432     0.006068   178   
+/livox/imu              203.4    0.0         0.1062      0.02075    178   
+/livox/lidar            10.0     0.08069     0.1184      0.006754   1018  
+/livox/lidar_shifted    10.01    0.08085     0.1184      0.008034   1018  
+/livox/lidar_merged     0.9912   0.9722      1.037       0.0239     50    
+/livox/lidar_filtered   1.001    0.9651      1.017       0.02389    50    
+
+        topic            rate    min_delta   max_delta   std_dev    window
+==========================================================================
+/camera/image_raw       35.02    0.01007     0.05113     0.006542   213   
+/livox/imu              206.3    0.0         0.1076      0.02059    213   
+/livox/lidar            9.996    0.08069     0.1184      0.00703    1221  
+/livox/lidar_shifted    10.0     0.08085     0.1184      0.007843   1221  
+/livox/lidar_merged     0.9961   0.9722      1.037       0.02356    60    
+/livox/lidar_filtered   0.9929   0.9651      1.032       0.02518    60    
+
+        topic            rate    min_delta   max_delta   std_dev    window
+==========================================================================
+/camera/image_raw       35.0     0.01007     0.05113     0.006649   237   
+/livox/imu              204.8    0.0         0.1076      0.02071    237   
+/livox/lidar            9.985    0.08069     0.1184      0.007193   1359  
+/livox/lidar_shifted    10.01    0.08085     0.1184      0.007794   1359  
+/livox/lidar_merged     0.9979   0.9722      1.037       0.02191    67    
+/livox/lidar_filtered   0.9975   0.9651      1.032       0.02437    67    
+
+        topic            rate   min_delta   max_delta   std_dev   window
+========================================================================
+/livox/lidar_filtered   1.062   0.6374      1.032       0.1379    7     
+
+no new messages
+no new messages
+       topic            rate   min_delta   max_delta   std_dev   window
+=======================================================================
+/camera/image_raw      5.371   0.01007     41.32       2.546     263   
+/livox/imu             31.17   0.0         41.37       1.062     263   
+/livox/lidar_shifted   1.461   0.08085     41.6        4.891     1519  
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       5.983    0.01007     41.32       2.388     299   
+/livox/imu              34.57    0.0         41.37       0.9979    299   
+/livox/lidar_shifted    1.633    0.08085     41.6        4.583     1719  
+/livox/lidar_merged     0.1442   0.9722      42.53       14.53     1719  
+/livox/lidar_filtered   0.1442   0.6374      42.89       14.68     82    
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       6.537    0.01007     41.32       2.263     333   
+/livox/imu              37.85    0.0         41.37       0.9442    333   
+/livox/lidar            1.44     0.08069     43.5        5.044     1920  
+/livox/lidar_shifted    1.799    0.08085     41.6        4.327     1920  
+/livox/lidar_merged     0.1615   0.9722      42.53       13.73     74    
+/livox/lidar_filtered   0.1616   0.6374      42.89       13.87     74    
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       7.104    0.01007     41.32       2.149     369   
+/livox/imu              41.22    0.0         41.37       0.8959    369   
+/livox/lidar            1.605    0.08069     43.5        4.735     2133  
+/livox/lidar_shifted    1.957    0.08085     41.6        4.109     2133  
+/livox/lidar_merged     0.1781   0.9722      42.53       13.05     84    
+/livox/lidar_filtered   0.1782   0.6374      42.89       13.18     84    
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       7.632    0.01007     41.32       2.054     404   
+/livox/imu              44.26    0.0         41.37       0.8564    404   
+/livox/lidar            1.765    0.08069     43.5        4.476     2334  
+/livox/lidar_shifted    2.11     0.08085     41.6        3.922     2334  
+/livox/lidar_merged     0.1941   0.9722      42.53       12.46     94    
+/livox/lidar_filtered   0.1942   0.6374      42.89       12.58     94    
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       8.142    0.01007     41.32       1.971     439   
+/livox/imu              47.13    0.0         41.37       0.8223    439   
+/livox/lidar            1.918    0.08069     43.5        4.255     2532  
+/livox/lidar_shifted    2.258    0.08085     41.6        3.757     2532  
+/livox/lidar_merged     0.2095   0.9722      42.53       11.94     104   
+/livox/lidar_filtered   0.2095   0.6374      42.89       12.06     104   
+
+WARNING: may be using simulated time
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       8.631    0.01006     41.32       1.896     474   
+/livox/imu              50.16    0.0         41.37       0.7898    474   
+/livox/lidar            2.066    0.08069     43.5        4.064     2745  
+/livox/lidar_shifted    2.4      0.08085     41.6        3.612     2745  
+/livox/lidar_merged     0.2243   0.9722      42.53       11.48     114   
+/livox/lidar_filtered   0.2244   0.6374      42.89       11.59     114   
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       9.104    0.01006     41.32       1.83      509   
+/livox/imu              52.84    0.0         41.37       0.7625    509   
+/livox/lidar            2.208    0.08069     43.5        3.897     2945  
+/livox/lidar_shifted    2.536    0.08085     41.6        3.483     2945  
+/livox/lidar_merged     0.2384   0.9722      42.53       11.07     124   
+/livox/lidar_filtered   0.2386   0.6374      42.89       11.17     124   
+
+        topic            rate    min_delta   max_delta   std_dev   window
+=========================================================================
+/camera/image_raw       9.559    0.01006     41.32       1.77      544   
+/livox/imu              55.44    0.0         41.37       0.7379    544   
+/livox/lidar            2.346    0.08069     43.5        3.749     3145  
+/livox/lidar_shifted    2.668    0.08085     41.6        3.366     3145  
+/livox/lidar_merged     0.2521   0.9722      42.53       10.7      134   
+/livox/lidar_filtered   0.2523   0.6374      42.89       10.8      134   
+
+no new messages

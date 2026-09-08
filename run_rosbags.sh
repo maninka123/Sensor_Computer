@@ -23,6 +23,33 @@ if [[ ${#bags[@]} -eq 0 ]]; then
   exit 1
 fi
 
+# Optional comma-separated topic filter. This is useful for fusion tests where
+# every selected bag must contain both raw camera and LiDAR streams.
+REQUIRE_TOPICS="${REQUIRE_TOPICS:-}"
+if [[ -n "$REQUIRE_TOPICS" ]]; then
+  IFS=',' read -r -a required_topics <<< "$REQUIRE_TOPICS"
+  selected_bags=()
+  for bag in "${bags[@]}"; do
+    bag_info="$(rosbag info "$bag")"
+    include=true
+    for topic in "${required_topics[@]}"; do
+      if ! awk -v required="$topic" '$1 == required { found=1 } END { exit !found }' <<< "$bag_info"; then
+        echo "Skipping ${bag##*/}: missing $topic"
+        include=false
+        break
+      fi
+    done
+    if [[ "$include" == true ]]; then
+      selected_bags+=("$bag")
+    fi
+  done
+  bags=("${selected_bags[@]}")
+  if [[ ${#bags[@]} -eq 0 ]]; then
+    echo "No bag files in $BAG_DIR contain every required topic: $REQUIRE_TOPICS" >&2
+    exit 1
+  fi
+fi
+
 echo "Found ${#bags[@]} bag file(s) in $BAG_DIR"
 echo "Press Ctrl+C to stop the loop."
 

@@ -1,0 +1,52 @@
+Configuration
+-------------
+timestamp_offset: 1739510486.944657 s
+capture_offset: +0.032430 s
+sync_tolerance: 0.050000 s
+
+Offline nearest-image validation
+--------------------------------
+controlled bag: 2025-02-14-16-45-34_with.bag
+LiDAR scans: 97
+within tolerance: 96/97 (98.97%)
+median nearest raw-image delta: 9.116 ms absolute
+95th percentile nearest raw-image delta: 14.438 ms absolute
+maximum nearest raw-image delta: 56.057 ms absolute (bag boundary)
+
+Published cloud sample
+----------------------
+points: 148266
+payload bytes: 5337576
+point step: 36 bytes
+source groups: 10
+source-to-image deltas (ms): -27.815, -23.755, -13.540, -12.795, -12.229, 1.173, 1.204, 14.665, 14.947, 35.007
+maximum absolute source-to-image delta: 35.007 ms
+points with non-black packed RGB: 148266/148266 (100%)
+fields: x,y,z,rgb,source_frame_index,source_frame_stamp_sec,source_frame_stamp_nsec,image_stamp_sec,image_stamp_nsec
+
+Partial-batch rerun
+-------------------
+configuration: allow_partial_batches=true, min_synchronized_frames=5
+sync tolerance: 0.050 s
+partial finalization timeout: 0.30 wall seconds
+enhancement off: mean 9.80/10 retained frames, range 8-10
+enhancement on: mean 5.44/10 retained frames, range 5-6
+enhancement-on mean output points: 80906
+enhancement-on coloured output: 0.300 Hz, 0.832 MiB/s
+thermal observation: 84076 mC and CPU0 throttled to 408000 kHz
+
+Focused first/last timing
+-------------------------
+enhancement off: 22 outputs in 25 s, 10/10 retained frames
+first-frame camera-lidar signed mean/range: -7.088 ms, -14.761 to +3.725 ms
+last-frame camera-lidar signed mean/range: +0.140 ms, -14.463 to +13.904 ms
+all-pair absolute mean/best/worst: 7.446 / 0.001 / 15.071 ms
+mean LiDAR retained acquisition span: 900.163 ms
+output lag from latest LiDAR mean/best/worst: 534.203 / 482.000 / 582.309 ms
+
+enhancement on: 37 outputs in 40 s, 5-9 retained frames (mean 7.622)
+first-frame camera-lidar signed mean/range: -3.752 ms, -43.804 to +43.471 ms
+last-frame camera-lidar signed mean/range: -0.009 ms, -49.459 to +46.194 ms
+all-pair absolute mean/best/worst: 23.152 / 0.001 / 49.459 ms
+mean LiDAR retained acquisition span: 813.437 ms
+output lag from latest LiDAR mean/best/worst: 755.272 / 631.951 / 1127.335 ms

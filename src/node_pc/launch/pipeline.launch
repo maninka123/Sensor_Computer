@@ -1,22 +1,37 @@
 <launch>
-  <arg name="rosbag" default="true" />
+  <!-- false: real FLIR/Livox sensors; true: raw topics supplied by rosbag. -->
+  <arg name="rosbag" default="false" />
   <arg name="rosbridge" default="true" />
   <arg name="rosbridge_address" default="$(optenv ROSBRIDGE_ADDRESS 0.0.0.0)" />
   <arg name="rosbridge_port" default="$(optenv ROSBRIDGE_PORT 9090)" />
   <arg name="ros_ip" default="$(env ROS_IP)" />
   <arg name="ros_master_uri" default="$(env ROS_MASTER_URI)" />
+  <arg name="camera_serial" default="$(optenv FLIR_CAMERA_SERIAL 24510717)" />
+  <arg name="camera_device_type" default="$(optenv FLIR_DEVICE_TYPE GigE)" />
+  <arg name="camera_frame_rate" default="$(optenv FLIR_FRAME_RATE 35)" />
+  <arg name="livox_broadcast_code" default="$(optenv LIVOX_BROADCAST_CODE 3JEDLB30015Y251)" />
 
   <!-- Keep the address used by every child explicit. run_pipeline.sh loads
        these values from config/network.env before roslaunch starts. -->
   <env name="ROS_IP" value="$(arg ros_ip)" />
   <env name="ROS_MASTER_URI" value="$(arg ros_master_uri)" />
 
+  <!-- run_rosbags.sh publishes the recorded clock. Keep every downstream pipeline node
+       on recorded time while testing, without starting either sensor driver. -->
+  <param name="/use_sim_time" value="$(arg rosbag)" />
+
   <node pkg="node_pc" type="network_config_check.py" name="network_config_check"
         output="screen" required="false" />
 
   <!-- Optional hardware bringup when not playing rosbag -->
-  <include file="$(find livox_ros_driver)/launch/livox_lidar.launch" unless="$(arg rosbag)" />
-  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" unless="$(arg rosbag)" />
+  <include file="$(find livox_ros_driver)/launch/livox_lidar.launch" unless="$(arg rosbag)">
+    <arg name="bd_list" value="$(arg livox_broadcast_code)" />
+  </include>
+  <include file="$(find spinnaker_camera_driver)/launch/camera.launch" unless="$(arg rosbag)">
+    <arg name="camera_serial" value="$(arg camera_serial)" />
+    <arg name="device_type" value="$(arg camera_device_type)" />
+    <arg name="frame_rate" value="$(arg camera_frame_rate)" />
+  </include>
 
   <!-- Shift -> indexed stack -> per-frame filter -> timestamp-matched colorize. -->
   <include file="$(find node_pc)/launch/time_shift.launch" />

@@ -102,7 +102,7 @@ DHCP reservations on real links.
 | `ROSBRIDGE_ADDRESS` | Local ROSBridge bind address | `0.0.0.0` | `network.env` |
 | `ROSBRIDGE_PORT` | Fixed ROSBridge WebSocket port | `9090` | `network.env` |
 | `NODE_PC_NETWORK_CONFIG` | Optional location of the canonical network file | `<workspace>/src/node_pc/config/network.env` | `deploy/node-pc.service` only when the workspace/config path differs |
-| `ROSBAG` | Whether hardware drivers are omitted for bag playback | `true` interactively; `false` in the service | Shell for a one-off run, or `deploy/node-pc.service` for deployment |
+| `ROSBAG` | `false` starts the hardware drivers; `true` omits only those drivers so raw topics can come from a bag while the remaining pipeline keeps running | `false` | Shell for a one-off run, or `deploy/node-pc.service` for deployment |
 | `ROSBRIDGE` | Whether ROSBridge and the web TF republisher start | `true` | Shell for a one-off run, or `deploy/node-pc.service` for deployment |
 
 `run_pipeline.sh` loads the selected file before `roslaunch`. The systemd unit
@@ -304,8 +304,8 @@ The production path is:
 LiDAR -> timestamp correction -> 10-frame indexed stack
       -> voxel/radius filtering per source frame
 Camera -> SBC-optimized Model V3 enhancement per image
-      -> one-to-one timestamp matching for every LiDAR source frame
-      -> colourization -> final timestamp-aware stacked PointCloud2
+      -> maximum-cardinality one-to-one timestamp matching
+      -> colourize matched source groups -> timestamp-aware PointCloud2
 ```
 
 `image_enhancer.py` uses the frozen, BatchNorm-fused TorchScript graph in
@@ -322,9 +322,11 @@ Each point in `/merged_colored_cloud` carries:
 - `source_frame_stamp_sec` and `source_frame_stamp_nsec`
 - `image_stamp_sec` and `image_stamp_nsec`
 
-The cloud header is the newest source-frame timestamp. Every source-frame
-group is filtered independently and must match a distinct camera image within
-`sync_tolerance` before the final cloud is published.
+The cloud header is the newest retained source-frame timestamp. Every
+source-frame group is filtered independently and may match at most one distinct
+camera image within `sync_tolerance`. By default, a partial output is published
+when at least 5 of the 10 source groups match; unmatched groups and their points
+are omitted. Set `allow_partial_batches: false` to restore strict 10/10 output.
 
 On a ROCK 5A, prepare the runtime with:
 
