@@ -277,16 +277,25 @@ void SpinnakerCamera::connect()
 void SpinnakerCamera::disconnect()
 {
   std::lock_guard<std::mutex> scopedLock(mutex_);
-  captureRunning_ = false;
   try
   {
     // Check if camera is connected
     if (pCam_)
     {
+      // A GetNextImage timeout enters the nodelet's reconnect state machine
+      // while acquisition is still active. Spinnaker refuses DeInit() in that
+      // state, leaving the old driver permanently stuck in ERROR. End the
+      // stream here so both normal disconnects and error recovery are valid.
+      if (captureRunning_)
+      {
+        pCam_->EndAcquisition();
+        captureRunning_ = false;
+      }
       pCam_->DeInit();
       pCam_ = static_cast<int>(NULL);
       camList_.RemoveBySerial(std::to_string(serial_));
     }
+    captureRunning_ = false;
     Spinnaker::CameraList temp_list = system_->GetCameras();
     camList_.Append(temp_list);
   }

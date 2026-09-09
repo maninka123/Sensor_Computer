@@ -44,6 +44,11 @@ Optional parameters:
 
 ## Networking and transports
 
+For two or more independent sensor computers connected to one Surface PC, use
+the complete [multi-device deployment guide](docs/MULTI_DEVICE_DEPLOYMENT.md).
+It includes the address allocation table, installation commands, persistent
+FLIR/Livox settings, native ROS limitation, and multi-ROSBridge connection model.
+
 The colourised output remains `sensor_msgs/PointCloud2` on
 `/merged_colored_cloud`. There are two independent ways to consume it:
 

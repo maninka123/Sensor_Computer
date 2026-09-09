@@ -1,5 +1,8 @@
 # ROCK 5A / ROS Noetic setup
 
+For several sensor computers sharing one switch and Surface PC, see
+[Multiple sensor computers connected to one Surface PC](docs/MULTI_DEVICE_DEPLOYMENT.md).
+
 This workspace is configured for Ubuntu 20.04 ARM64, ROS Noetic, one FLIR
 GigE camera, and one Livox Avia. The Spinnaker ARM64 SDK is already installed
 in `/opt/spinnaker`; do not install the AMD64 archive under `Camera_SDK`.
