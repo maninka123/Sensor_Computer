@@ -36,6 +36,8 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
       rate control, and 'frame_rate' to set the frame rate value. -->
   <arg name="control_frame_rate"        default="True" />
   <arg name="frame_rate"                default="35" />
+  <arg name="x_binning"                 default="1" />
+  <arg name="y_binning"                 default="1" />
 
   <!-- Disabling ISP will dramatically increase frame-rate. However, it can only be 
       disabled when using Bayer encoding (e.g. BayerRG8)-->
@@ -91,9 +93,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
                 x-offset = max_width/x_binning - roi_width/2
                 y-offset = max_height/y_binning - roi_height/2
       -->
+      <param name="image_format_x_binning" value="$(arg x_binning)" />
+      <param name="image_format_y_binning" value="$(arg y_binning)" />
       <!--
-      <param name="image_format_x_binning" value="2" />
-      <param name="image_format_y_binning" value="2" />
       <param name="image_format_x_offset" value="128" />
       <param name="image_format_y_offset" value="122" />
       <param name="image_format_roi_width" value="1280" />

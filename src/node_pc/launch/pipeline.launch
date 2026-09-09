@@ -9,6 +9,8 @@
   <arg name="camera_serial" default="$(optenv FLIR_CAMERA_SERIAL 24510717)" />
   <arg name="camera_device_type" default="$(optenv FLIR_DEVICE_TYPE GigE)" />
   <arg name="camera_frame_rate" default="$(optenv FLIR_FRAME_RATE 35)" />
+  <arg name="camera_x_binning" default="$(optenv FLIR_X_BINNING 4)" />
+  <arg name="camera_y_binning" default="$(optenv FLIR_Y_BINNING 4)" />
   <arg name="livox_broadcast_code" default="$(optenv LIVOX_BROADCAST_CODE 3JEDLB30015Y251)" />
 
   <!-- Keep the address used by every child explicit. run_pipeline.sh loads
@@ -31,6 +33,8 @@
     <arg name="camera_serial" value="$(arg camera_serial)" />
     <arg name="device_type" value="$(arg camera_device_type)" />
     <arg name="frame_rate" value="$(arg camera_frame_rate)" />
+    <arg name="x_binning" value="$(arg camera_x_binning)" />
+    <arg name="y_binning" value="$(arg camera_y_binning)" />
   </include>
 
   <!-- Shift -> indexed stack -> per-frame filter -> timestamp-matched colorize. -->

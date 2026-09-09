@@ -23,12 +23,37 @@ change. Current values are:
 
 - Sensor computer: `10.20.0.21`
 - Surface ROS master: `10.20.0.10:11311`
-- FLIR serial: `24510717`, GigE, 35 FPS
+- FLIR serial: `24510717`, persistent IP `10.20.0.22/24`, GigE, 35 FPS
+- FLIR image: 4x4 binning (`484x366`), matching `pipeline.yaml` calibration
 - Livox Avia broadcast code: `3JEDLB30015Y251`
 
 The sensor computer must actually own `10.20.0.21` before hardware startup,
 and it must be able to reach the surface master. The launch-time network check
 prints an error when the configured address is not assigned.
+
+The camera itself has persistent IP enabled, so it returns to `10.20.0.22/24`
+after power cycles and does not require connecting it to another PC first. To
+recover this setting after a camera factory reset, temporarily put `eth0` in
+the camera's link-local subnet and use FLIR's installed `GigEConfig` utility;
+the desired camera-side values are recorded in `network.env`.
+
+Verify the camera's current and stored addresses with:
+
+```bash
+/opt/spinnaker/bin/GigEConfig -s 24510717
+```
+
+Both `GevDeviceIPAddress` and `GevPersistentIPAddress` should be
+`10.20.0.22`. To recover after a factory reset without using another PC:
+
+```bash
+nmcli device modify eth0 ipv4.addresses 169.254.1.1/16
+/opt/spinnaker/bin/GigEConfig -s 24510717 -i 10.20.0.22 -n 255.255.255.0 -g 10.20.0.1
+nmcli device modify eth0 ipv4.addresses '10.20.0.21/24,192.168.1.50/24'
+```
+
+The temporary `nmcli device modify` operation does not alter the saved
+NetworkManager profile, but it briefly interrupts wired ROS traffic.
 
 ## Run
 

@@ -4,6 +4,7 @@ set -euo pipefail
 WS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source /opt/ros/noetic/setup.bash
 [[ -r "$WS_DIR/devel/setup.bash" ]] && source "$WS_DIR/devel/setup.bash"
+[[ -r "$WS_DIR/src/node_pc/config/network.env" ]] && source "$WS_DIR/src/node_pc/config/network.env"
 
 echo "Architecture: $(uname -m)"
 echo "ROS: ${ROS_DISTRO:-not sourced}"
@@ -19,4 +20,15 @@ lsusb || true
 if command -v timeout >/dev/null && [[ -x /opt/spinnaker/bin/Enumeration ]]; then
   echo "FLIR enumeration:"
   timeout 10 /opt/spinnaker/bin/Enumeration || true
+fi
+
+if command -v timeout >/dev/null && [[ -x /opt/spinnaker/bin/GigEConfig ]] \
+   && [[ -n "${FLIR_CAMERA_SERIAL:-}" ]]; then
+  echo "FLIR network configuration:"
+  camera_info="$(timeout 10 /opt/spinnaker/bin/GigEConfig -s "$FLIR_CAMERA_SERIAL" 2>&1 || true)"
+  printf '%s\n' "$camera_info"
+  if [[ -n "${FLIR_CAMERA_IP:-}" ]] \
+     && ! printf '%s\n' "$camera_info" | rg -q "GevDeviceIPAddress : ${FLIR_CAMERA_IP}$"; then
+    echo "WARNING: FLIR camera $FLIR_CAMERA_SERIAL is not using expected IP $FLIR_CAMERA_IP" >&2
+  fi
 fi
