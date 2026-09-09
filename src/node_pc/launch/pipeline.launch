@@ -38,7 +38,9 @@
   </include>
 
   <!-- Shift -> indexed stack -> per-frame filter -> timestamp-matched colorize. -->
-  <include file="$(find node_pc)/launch/time_shift.launch" />
+  <include file="$(find node_pc)/launch/time_shift.launch">
+    <arg name="auto_timestamp_offset" value="$(eval not arg('rosbag'))" />
+  </include>
 
   <!-- Web-only components. Native TCPROS subscribers do not need either. -->
   <group if="$(arg rosbridge)">

@@ -27,6 +27,8 @@ The software runs on a dedicated sensor computer and integrates various hardware
 The status monitor provides a live terminal dashboard for node health and sensor sync:
 - Per-topic rates (Hz) with stale detection.
 - Timestamp offset between `/livox/lidar_shifted` and `/camera/image_raw`.
+- Automatic live Livox-to-ROS clock conversion after each sensor restart;
+  rosbag playback retains its fixed recorded conversion.
 - Effective image-enhancement status and temperature protection state.
 
 Run it with ROS running and topics available:
@@ -55,7 +57,7 @@ Enabling it preserves the existing WebSocket and web-TF path.
 
 The fixed endpoints are:
 
-- ROS Master/TCPROS discovery: `http://10.20.0.10:11311`
+- ROS Master/TCPROS discovery: `http://10.20.0.21:11311`
 - Direct device ROSBridge: `ws://10.20.0.21:9090`
 
 ### Physical connection quick start
@@ -64,8 +66,8 @@ Use the following addresses on the real sensor-to-surface network:
 
 | Machine | Interface address | Role |
 | --- | --- | --- |
-| Sensor computer | `10.20.0.21/24` | Publishes sensor topics and hosts ROSBridge |
-| Surface PC | `10.20.0.10/24` | Hosts the ROS 1 Master and native subscribers |
+| Sensor computer | `10.20.0.21/24` | Hosts the ROS master, sensor pipeline, and ROSBridge |
+| Surface PC | `10.20.0.10/24` | Connects later as a native or WebSocket subscriber |
 
 Connect both machines to the same Ethernet switch or direct Ethernet link. The
 surface PC must actually own `10.20.0.10/24`; putting that address only in a ROS
@@ -88,32 +90,21 @@ ping 10.20.0.21
 ping 10.20.0.10
 ```
 
-Start the ROS Master on the surface PC and leave the terminal open:
+Start the complete stack on the sensor computer. It owns the ROS master, so it
+continues acquiring and processing when the Surface PC is absent:
 
 ```bash
-source /opt/ros/noetic/setup.bash
-export ROS_IP=10.20.0.10
-export ROS_MASTER_URI=http://10.20.0.10:11311
-roscore
-```
-
-Confirm from the sensor computer that the Master is reachable, then start the
-hardware pipeline. Stop any existing loopback/rosbag test first so that it does
-not retain `ROS_IP=127.0.0.1` or occupy the sensors.
-
-```bash
-nc -vz 10.20.0.10 11311
 cd ~/catkin_ws_actual
 ./check_hardware.sh
 ./run_hardware.sh
 ```
 
-For native ROS/TCPROS, configure every surface-PC terminal that uses ROS:
+When the Surface PC connects, configure every native ROS terminal as follows:
 
 ```bash
 source /opt/ros/noetic/setup.bash
 export ROS_IP=10.20.0.10
-export ROS_MASTER_URI=http://10.20.0.10:11311
+export ROS_MASTER_URI=http://10.20.0.21:11311
 rostopic list
 rostopic hz /merged_colored_cloud
 ```
@@ -147,11 +138,11 @@ There are two separate layers of address configuration:
    an address on `eth0`.
 
 The repository's `network.env` contains the device's literal fixed address and
-the surface ROS Master address; neither is derived from the runtime host:
+its local ROS Master address; neither is derived from the runtime host:
 
 | File | Device address | Master |
 | --- | --- | --- |
-| `src/node_pc/config/network.env` | `10.20.0.21` | `http://10.20.0.10:11311` |
+| `src/node_pc/config/network.env` | `10.20.0.21` | `http://10.20.0.21:11311` |
 
 These private static addresses mirror the real deployment requirement: native
 ROS peers must be able to dial the literal address a node advertised. They are
@@ -208,7 +199,7 @@ surface PC must remain in the same subnet, for example `10.20.0.10/24`.
 | Variable | Meaning | Repository default | Set it in |
 | --- | --- | --- | --- |
 | `ROS_IP` | Address advertised by every node for XML-RPC and TCPROS callbacks | `10.20.0.21` | `network.env`; it **must be a literal IPv4 address**, never a name |
-| `ROS_MASTER_URI` | Surface ROS Master | `http://10.20.0.10:11311` | `network.env` |
+| `ROS_MASTER_URI` | Sensor-hosted ROS Master used by the device and Surface clients | `http://10.20.0.21:11311` | `network.env` |
 | `ROSBRIDGE_ADDRESS` | Local ROSBridge bind address | `0.0.0.0` | `network.env` |
 | `ROSBRIDGE_PORT` | Fixed ROSBridge WebSocket port | `9090` | `network.env` |
 | `NODE_PC_NETWORK_CONFIG` | Optional location of the canonical network file | `<workspace>/src/node_pc/config/network.env` | `deploy/node-pc.service` only when the workspace/config path differs |
@@ -222,12 +213,10 @@ passes both values explicitly to every child and logs the resolved advertised
 address. A loopback address, unassigned address, or name produces a prominent
 startup error.
 
-The current design runs one Master at `10.20.0.10` on the surface. The sensing
-device cannot register or be discovered while the surface Master is unavailable.
-Already-running publishers can continue producing locally, but messages cannot
-be discovered or delivered through ROS until registration succeeds. ROS client
-libraries retry Master registration, and the systemd service restarts a failed
-launch after five seconds.
+The current design runs one Master at `10.20.0.21` on the sensing device. Sensor
+acquisition and processing therefore start without the Surface PC. A Surface
+client that connects later points `ROS_MASTER_URI` to the device and advertises
+its own reachable `10.20.0.10` address through `ROS_IP`.
 
 Use static addressing or a DHCP reservation for both the sensing unit and the
 surface subscriber. If an address changes after reboot, advertised callbacks or

@@ -6,6 +6,11 @@ lidar_timestamp_shift:
   # This clock-domain conversion is valid for the current calibration bag set;
   # recalculate it after a LiDAR clock reset/restart for live operation.
   timestamp_offset: 1739510486.944657
+  # pipeline.launch enables this only for real sensors. Live Livox device time
+  # restarts at boot, so its clock conversion cannot be a fixed constant.
+  auto_timestamp_offset: false
+  scan_duration: 0.1  # one PointCloud2 contains 250 packets at 10 Hz
+  auto_offset_alpha: 0.01
   # capture_offset: Compensates for sensor capture delay difference between LiDAR and Camera
   # This ensures both sensors capture the same environmental event at the same timestamp
   # Added after clock conversion because the cloud header refers to its first

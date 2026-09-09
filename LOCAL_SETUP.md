@@ -22,14 +22,14 @@ Edit `src/node_pc/config/network.env` if the reserved addresses or hardware
 change. Current values are:
 
 - Sensor computer: `10.20.0.21`
-- Surface ROS master: `10.20.0.10:11311`
+- ROS master: `10.20.0.21:11311` on the sensor computer
 - FLIR serial: `24510717`, persistent IP `10.20.0.22/24`, GigE, 35 FPS
 - FLIR image: 4x4 binning (`484x366`), matching `pipeline.yaml` calibration
 - Livox Avia broadcast code: `3JEDLB30015Y251`
 
-The sensor computer must actually own `10.20.0.21` before hardware startup,
-and it must be able to reach the surface master. The launch-time network check
-prints an error when the configured address is not assigned.
+The sensor computer must actually own `10.20.0.21` before hardware startup.
+The launch-time network check prints an error when the configured address is
+not assigned; the Surface PC does not need to be present at startup.
 
 The camera itself has persistent IP enabled, so it returns to `10.20.0.22/24`
 after power cycles and does not require connecting it to another PC first. To
@@ -57,13 +57,17 @@ NetworkManager profile, but it briefly interrupts wired ROS traffic.
 
 ## Run
 
-On the surface computer, start its ROS master. On this sensor computer:
+On the sensor computer, start the self-contained hardware stack. It starts its
+own ROS master and does not require the Surface PC to be present:
 
 ```bash
 cd ~/catkin_ws_actual
 ./check_hardware.sh
 ./run_hardware.sh
 ```
+
+When the Surface PC connects later, configure its ROS terminals with
+`ROS_IP=10.20.0.10` and `ROS_MASTER_URI=http://10.20.0.21:11311`.
 
 To test against rosbags without hardware, use two terminals. The pipeline still
 runs timestamp correction, merging, filtering, image enhancement, colourisation,
@@ -120,10 +124,9 @@ rostopic hz /merged_colored_cloud
 rosrun node_pc monitor_status.py
 ```
 
-Camera intrinsics, LiDAR-to-camera extrinsics, and timestamp offsets live in
-`src/node_pc/config/pipeline.yaml`. Recalibrate these if either sensor or its
-mounting moves; they cannot be verified without connected hardware and a known
-calibration target.
+Camera intrinsics, LiDAR-to-camera extrinsics, capture correction, and rosbag
+clock offset live in `src/node_pc/config/pipeline.yaml`. Recalibrate the camera
+and extrinsics if either sensor or its mounting moves.
 
 The colourizer also uses partial synchronized batches by default. It collects
 ten LiDAR scans per approximately one-second window, performs one-to-one image
@@ -166,5 +169,8 @@ using raw images; at 70 C it is restored if the user's most recent request is
 still ON. A temperature-read failure also safely selects raw mode. All values
 are adjustable under `image_enhancer` in `src/node_pc/config/pipeline.yaml`.
 
-The configured large timestamp offset matches the current calibration bags.
-Recalculate it for live hardware after a LiDAR clock reset or restart.
+For `ROSBAG=true`, the configured fixed timestamp offset matches the calibration
+bags. For real hardware, `pipeline.launch` enables `auto_timestamp_offset`: the
+node derives the changing Livox-device-to-ROS clock conversion after every
+LiDAR start/restart, then independently adds the configured 32.43 ms capture
+correction. No live clock offset needs to be copied into the YAML file.

@@ -36,6 +36,9 @@ if str(SBC_DIR) not in sys.path:
     sys.path.insert(0, str(SBC_DIR))
 
 import rospy
+# On Ubuntu 20.04 ARM64, importing cv_bridge before cv2 can leave the Boost
+# extension without NumPy/OpenCV's symbols and raise an unreported exception.
+import cv2  # noqa: F401  (load OpenCV before cv_bridge)
 import torch
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image

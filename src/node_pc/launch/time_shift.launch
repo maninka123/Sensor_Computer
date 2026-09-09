@@ -1,8 +1,11 @@
 <launch>
+  <arg name="auto_timestamp_offset" default="false" />
   <!-- Load parameters for both nodes from one config file -->
   <rosparam file="$(find node_pc)/config/pipeline.yaml" command="load" />
 
-  <node pkg="node_pc" type="lidar_timestamp_shift_node" name="lidar_timestamp_shift" output="screen" />
+  <node pkg="node_pc" type="lidar_timestamp_shift_node" name="lidar_timestamp_shift" output="screen">
+    <param name="auto_timestamp_offset" value="$(arg auto_timestamp_offset)" />
+  </node>
 
   <node pkg="node_pc" type="pointcloud_merge_node" name="pointcloud_merger" output="screen" />
 
