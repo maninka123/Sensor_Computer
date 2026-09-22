@@ -1,8 +1,28 @@
 # Sensor Computer Software
 
+> Prerequisites: install the [Spinnaker SDK](https://www.teledynevisionsolutions.com/en-au/products/spinnaker-sdk/?model=Spinnaker%20SDK&vertical=machine%20vision&segment=iis)
+> for the FLIR camera and the [Livox SDK](https://github.com/Livox-SDK/Livox-SDK)
+> for the LiDAR before building the workspace. See [LOCAL_SETUP.md](LOCAL_SETUP.md).
+
+## System description
+
 ROS Noetic software for one FLIR Blackfly S camera and one Livox Avia LiDAR.
 It produces a timestamp-synchronised, filtered, colourised point cloud for a
-remote Surface/server PC.
+remote server PC.
+
+### Key features
+
+- Livox LiDAR and IMU acquisition
+- FLIR Blackfly S camera acquisition
+- Low-light image enhancement with thermal protection
+- Timestamp alignment, filtering, merging, and point-cloud colourisation
+- Native ROS 1 TCPROS and ROSBridge output
+
+### Repository structure
+
+- `src/node_pc` — processing, fusion, filtering, colourisation, enhancement
+- `src/flir_camera_driver` — FLIR Spinnaker driver
+- `src/ws_livox` — Livox ROS driver
 
 ## Install
 
@@ -11,8 +31,8 @@ computer. It covers Spinnaker, Livox, workspace build, and inference runtime.
 
 ## Run
 
-Run the preflight check first. It checks the configured network, FLIR camera,
-and Livox reachability without starting the pipeline.
+- Preflight: network, FLIR camera, and Livox reachability.
+- It does not start the pipeline.
 
 ```bash
 cd ~/catkin_ws_actual
@@ -25,12 +45,16 @@ Start the complete live-sensor pipeline:
 ./run_hardware.sh
 ```
 
-This is the default (`ROSBAG=false`): it starts FLIR, Livox LiDAR/IMU,
-timestamp alignment, merging, filtering, colourisation, temperature monitoring,
-the ROS master, and ROSBridge. Stop it with `Ctrl+C`.
+- Default: `ROSBAG=false`.
+- Starts FLIR, Livox LiDAR/IMU, processing, temperature monitoring, ROS master,
+  and ROSBridge.
+- Stop with `Ctrl+C`.
 
-For rosbag testing, start the same downstream pipeline without the physical
-drivers, then play a bag that provides the raw camera/LiDAR topics:
+For rosbag testing:
+
+- Sensor drivers stay off.
+- The same downstream pipeline stays on.
+- The bag supplies raw camera/LiDAR topics.
 
 ```bash
 ROSBAG=true ./run_pipeline.sh
@@ -52,6 +76,10 @@ The remote PC connects to this unit through ROSBridge:
 ```text
 ws://10.20.0.21:9090
 ```
+
+- This is the current unit's direct/shared-link address.
+- For separate private rigs that send output to one server, use the
+  `10.30.0.x` server/output addresses in the second-unit table below.
 
 For native ROS 1 TCPROS, configure the remote PC (example address
 `10.20.0.10/24`) as follows:
@@ -83,25 +111,30 @@ to use the same address.
 
 ### Second sensor unit
 
-If two units connect to the same server/switch, all addresses must be unique.
+This repository supports two network layouts. The current unit uses one shared
+sensor/server Ethernet network, where every address must be unique. If each rig
+has its own private sensor LAN and only sends final output to the server, the
+internal FLIR/Livox addresses may be reused; only each PC's server-facing ROS
+address must be unique.
 
-| Component | Unit 1 | Unit 2 |
+For the private-rig layout, use a server/output subnet different from the
+internal `10.20.0.0/24` sensor subnet. Do not put the same `10.20.0.x/24`
+subnet on both Ethernet interfaces of one PC.
+
+| Network / component | Unit 1 | Unit 2 |
 | --- | --- | --- |
-| Sensor PC / ROSBridge | `10.20.0.21:9090` | `10.20.0.31:9090` |
-| FLIR | `10.20.0.22` | `10.20.0.32` |
-| Livox host address | `192.168.1.50` | `192.168.1.51` |
-| Livox LiDAR | `192.168.1.125` | `192.168.1.126` |
+| Server/output PC address and ROSBridge | `10.30.0.21:9090` | `10.30.0.31:9090` |
+| Private sensor-PC addresses | `10.20.0.21`, `192.168.1.50` | same values may be reused |
+| Private FLIR / Livox addresses | `10.20.0.22`, `192.168.1.125` | same values may be reused |
 
-On the second PC, use its own FLIR serial and Livox broadcast code:
+Set `ROS_IP` and `ROS_MASTER_URI` in each unit's `network.env` to its unique
+server/output address. The FLIR serial and Livox broadcast code still identify
+the physical devices and must match that rig. The server reads final outputs at
+`ws://10.30.0.21:9090` and `ws://10.30.0.31:9090`.
 
-```bash
-./scripts/configure_sensor_unit.sh "ROS Sensor Unit 2" eth0 \
-  10.20.0.31 10.20.0.32 192.168.1.51 192.168.1.126 \
-  NEW_FLIR_SERIAL NEW_LIVOX_BROADCAST_CODE
-```
-
-Then set the FLIR and Livox devices to their listed persistent addresses. The
-server reads each final output separately through the two ROSBridge URLs.
+Use `configure_sensor_unit.sh` only for the shared-switch layout, where every
+sensor address is unique. The private-rig layout requires separate NetworkManager
+profiles (or VLANs) for the sensor LAN and the server/output LAN.
 For complete installation and multi-device details, see
 [MULTI_DEVICE_DEPLOYMENT.md](docs/MULTI_DEVICE_DEPLOYMENT.md).
 
@@ -128,11 +161,9 @@ rostopic hz /camera/image_raw /livox/lidar /merged_colored_cloud
 rostopic echo /temperature
 ```
 
-## Main packages
+## Raw vs enhanced image
 
-- `src/node_pc` — processing, fusion, filtering, colourisation, and enhancement
-- `src/flir_camera_driver` — FLIR Spinnaker driver
-- `src/ws_livox` — Livox ROS driver
+![Raw vs Enhanced](Images/Raw_vs_Enchanced.jpeg)
 
 ## License
 

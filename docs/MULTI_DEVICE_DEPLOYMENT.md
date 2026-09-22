@@ -1,29 +1,51 @@
-# Multiple sensor computers connected to one Surface PC
+# Multiple independent sensor units connected to one server
 
-Each sensor computer runs a complete independent pipeline, ROS master, and
-ROSBridge server. The Surface PC may connect later and keeps one fixed address:
-`10.20.0.10/24`. It does not need one local IP per sensor computer.
+Each sensor computer runs its own pipeline, ROS master, and ROSBridge server.
+The server receives only each unit's final output. It keeps one server address;
+each unit needs a unique address only on that server/output network.
 
-## Why the addresses must differ
+## Recommended layout: private sensor LAN per rig
 
-An IPv4 address identifies one network interface on the shared switch. Every
-sensor computer, FLIR camera, and Livox unit therefore needs a unique address.
-TCP ports may be reused because the complete socket identity includes the IP:
-all sensor computers can listen on ROS port `11311` and ROSBridge port `9090`.
+This is the intended layout when the FLIR and Livox are not shared with the
+server or another rig. Each rig has a private sensor-facing Ethernet interface
+(or isolated VLAN), plus a separate server/output interface. The private FLIR
+and Livox IPs may be identical on every rig because those networks never meet.
 
-Use this repeatable allocation pattern:
+Use a server/output subnet that differs from the private camera subnet. For
+example, the server can be `10.30.0.10/24`:
 
-| Unit | Sensor computer / ROS master | FLIR camera | Livox host alias | Livox LiDAR | ROSBridge |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `10.20.0.21` | `10.20.0.22` | `192.168.1.50` | `192.168.1.125` | `ws://10.20.0.21:9090` |
-| 2 | `10.20.0.31` | `10.20.0.32` | `192.168.1.51` | `192.168.1.126` | `ws://10.20.0.31:9090` |
-| 3 | `10.20.0.41` | `10.20.0.42` | `192.168.1.52` | `192.168.1.127` | `ws://10.20.0.41:9090` |
+| Network / component | Unit 1 | Unit 2 | Unit 3 |
+| --- | --- | --- | --- |
+| Server-facing PC / ROS master | `10.30.0.21` | `10.30.0.31` | `10.30.0.41` |
+| ROSBridge endpoint | `ws://10.30.0.21:9090` | `ws://10.30.0.31:9090` | `ws://10.30.0.41:9090` |
+| Private sensor-PC camera address | `10.20.0.21` | `10.20.0.21` | `10.20.0.21` |
+| Private FLIR camera | `10.20.0.22` | `10.20.0.22` | `10.20.0.22` |
+| Private sensor-PC Livox address | `192.168.1.50` | `192.168.1.50` | `192.168.1.50` |
+| Private Livox LiDAR | `192.168.1.125` | `192.168.1.125` | `192.168.1.125` |
 
-The two addresses on each sensor-computer Ethernet interface are intentional:
-`10.20.0.x/24` reaches its camera and the Surface PC, while
-`192.168.1.x/24` reaches its Livox. Wi-Fi can remain the default internet route.
-Do not duplicate the example addresses, FLIR serial, Livox address, or Livox
-broadcast code on another unit.
+The FLIR serial and Livox broadcast code are hardware identifiers. They are
+different for each physical device, even though the private IP addresses may
+be reused. Configure every unit's `ROS_IP` and `ROS_MASTER_URI` with its
+unique **server-facing** address.
+
+Do not put `10.20.0.x/24` on both the private sensor interface and the
+server-facing interface of the same PC. Use separate interfaces/VLANs and
+different subnets, as in the table above.
+
+## Alternative: one shared switch
+
+If all PCs, cameras, LiDARs, and the server share one Ethernet switch/VLAN,
+every address must be unique. Use this allocation and
+`configure_sensor_unit.sh`:
+
+| Component | Unit 1 | Unit 2 |
+| --- | --- | --- |
+| Sensor PC / ROSBridge | `10.20.0.21:9090` | `10.20.0.31:9090` |
+| FLIR | `10.20.0.22` | `10.20.0.32` |
+| Livox host address | `192.168.1.50` | `192.168.1.51` |
+| Livox LiDAR | `192.168.1.125` | `192.168.1.126` |
+
+TCP port `9090` may still be reused because each sensor PC has a different IP.
 
 ## Install another sensor computer
 
@@ -85,45 +107,40 @@ python3 -m venv --system-site-packages .venv
 
 ## Configure each sensor computer
 
-Commission one complete unit at a time before attaching all units to the shared
-switch. This prevents an unconfigured camera or LiDAR from colliding with a
-device already in service.
+For the recommended private-rig layout:
 
-Find the Ethernet connection and interface names:
+- Create one NetworkManager profile for the private sensor interface.
+- Assign its camera/Livox-side addresses: `10.20.0.21/24` and
+  `192.168.1.50/24`.
+- Create another profile for the server/output interface.
+- Give that interface the unit's unique server address, such as
+  `10.30.0.31/24` for unit 2.
+- Set `ROS_IP` and `ROS_MASTER_URI` in `network.env` to the unique
+  server/output address, not to the private sensor address.
+
+Find interface names first:
 
 ```bash
 nmcli -f NAME,DEVICE,TYPE connection show
 ip -brief link
 ```
 
-Preview unit 2 without changing anything:
+For unit 2, the important `network.env` values are:
 
 ```bash
-cd ~/catkin_ws_actual
-./scripts/configure_sensor_unit.sh --dry-run \
-  'ROS Sensor Unit 2' eth0 \
-  10.20.0.31 10.20.0.32 \
-  192.168.1.51 192.168.1.126 \
-  24519999 3JEDLB30000X261
+ROS_IP=10.30.0.31
+ROS_MASTER_URI=http://10.30.0.31:11311
+FLIR_CAMERA_IP=10.20.0.22
+LIVOX_HOST_IP=192.168.1.50
+LIVOX_DEVICE_IP=192.168.1.125
 ```
 
-Replace the serial and 15-character Livox broadcast code, remove `--dry-run`,
-and run the command locally. It creates a persistent NetworkManager profile and
-updates `src/node_pc/config/network.env`. Activating the profile briefly
-interrupts wired networking.
+The master URI always points back to that sensor computer's own server-facing
+`ROS_IP`; it must not point to the server or another sensor unit.
 
-The resulting unit 2 settings include:
-
-```bash
-ROS_IP=10.20.0.31
-ROS_MASTER_URI=http://10.20.0.31:11311
-FLIR_CAMERA_IP=10.20.0.32
-LIVOX_HOST_IP=192.168.1.51
-LIVOX_DEVICE_IP=192.168.1.126
-```
-
-The master URI always points back to that sensor computer's own `ROS_IP`; it
-must not point to the Surface PC or another sensor unit.
+`configure_sensor_unit.sh` is for the alternative shared-switch layout. It
+places both host addresses on one interface, so do not use it for separate
+sensor and server interfaces.
 
 ### Configure the FLIR address permanently
 
@@ -132,28 +149,28 @@ persistent address using its actual serial:
 
 ```bash
 /opt/spinnaker/bin/GigEConfig -s REPLACE_FLIR_SERIAL \
-  -i 10.20.0.32 -n 255.255.255.0 -g 10.20.0.1
+  -i 10.20.0.22 -n 255.255.255.0 -g 10.20.0.1
 /opt/spinnaker/bin/GigEConfig -s REPLACE_FLIR_SERIAL
 ```
 
 Both `GevDeviceIPAddress` and `GevPersistentIPAddress` must show
-`10.20.0.32`. If the camera is link-local (`169.254.x.x`), follow the recovery
+`10.20.0.22`. If the camera is link-local (`169.254.x.x`), follow the recovery
 procedure in `LOCAL_SETUP.md`. Only connect the camera being commissioned while
 performing an automatic Force-IP operation.
 
 ### Configure the Livox address and identity
 
 Every Livox has a unique 15-character broadcast code; copy it from the unit's
-label and set `LIVOX_BROADCAST_CODE` in `network.env`. Configure a unique static
-address such as `192.168.1.126/24` using Livox Viewer or an SDK utility that
-calls `SetStaticDynamicIP`. Restart the LiDAR after changing its address.
+label and set `LIVOX_BROADCAST_CODE` in `network.env`. Configure
+`192.168.1.125/24` on each isolated private sensor network, or use a unique
+address when LiDARs share a switch/VLAN. Restart the LiDAR after changing its
+address.
 
 References: [official Livox ROS driver and broadcast-code documentation](https://github.com/Livox-SDK/livox_ros_driver)
 and [official Livox static/dynamic IP API](https://github.com/Livox-SDK/Livox-SDK/blob/master/sdk_core/include/livox_sdk.h).
 
-The launch passes the broadcast code as a whitelist, ensuring each sensor
-computer connects only to its assigned LiDAR even though broadcasts from every
-Livox are visible on the shared switch.
+The launch uses the broadcast code as a whitelist, ensuring each sensor
+computer connects only to its assigned LiDAR.
 
 ### Calibration is per physical rig
 
@@ -173,8 +190,8 @@ cd ~/catkin_ws_actual
 The command starts the local ROS master automatically. Verify:
 
 ```bash
-export ROS_IP=10.20.0.31
-export ROS_MASTER_URI=http://10.20.0.31:11311
+export ROS_IP=10.30.0.31
+export ROS_MASTER_URI=http://10.30.0.31:11311
 source /opt/ros/noetic/setup.bash
 rostopic hz /camera/image_raw
 rostopic hz /livox/lidar
@@ -185,40 +202,40 @@ The bundled Noetic FLIR driver includes automatic recovery from a transient
 GigE frame timeout: it closes the active acquisition correctly, reconnects the
 camera, reapplies its configuration, and resumes `/camera/image_raw`.
 
-For unattended startup, install `deploy/node-pc.service` as described in the
-main README. Each clone's `network.env` supplies that unit's addresses.
+For unattended startup, review and install `deploy/node-pc.service`; each
+clone's `network.env` supplies that unit's addresses.
 
-## Connect one Surface PC to several units
+## Connect one server to several units
 
-Configure the Surface Ethernet interface once:
+Configure the server Ethernet interface once:
 
 ```bash
 sudo nmcli connection modify '<surface-wired-profile>' \
-  ipv4.method manual ipv4.addresses 10.20.0.10/24 \
+  ipv4.method manual ipv4.addresses 10.30.0.10/24 \
   ipv4.gateway '' ipv4.never-default yes
 sudo nmcli connection up '<surface-wired-profile>'
 ```
 
-The Surface PC can then ping every unit from its single address:
+The server can then ping every unit from its single address:
 
 ```bash
-ping 10.20.0.21
-ping 10.20.0.31
-ping 10.20.0.41
+ping 10.30.0.21
+ping 10.30.0.31
+ping 10.30.0.41
 ```
 
 ### Recommended: one ROSBridge connection per unit
 
-A Surface application can open all of these concurrently:
+A server application can open all of these concurrently:
 
 ```text
-ws://10.20.0.21:9090
-ws://10.20.0.31:9090
-ws://10.20.0.41:9090
+ws://10.30.0.21:9090
+ws://10.30.0.31:9090
+ws://10.30.0.41:9090
 ```
 
 The topic names may be identical because each WebSocket is a separate
-connection. Tag data in the Surface application by unit/IP.
+connection. Tag data in the server application by unit/IP.
 
 ### Native ROS 1/TCPROS
 
@@ -227,17 +244,17 @@ independent masters at once. Use a separate process or terminal per unit:
 
 ```bash
 # Terminal/process for unit 1
-export ROS_IP=10.20.0.10
-export ROS_MASTER_URI=http://10.20.0.21:11311
+export ROS_IP=10.30.0.10
+export ROS_MASTER_URI=http://10.30.0.21:11311
 rostopic hz /merged_colored_cloud
 
 # Terminal/process for unit 2
-export ROS_IP=10.20.0.10
-export ROS_MASTER_URI=http://10.20.0.31:11311
+export ROS_IP=10.30.0.10
+export ROS_MASTER_URI=http://10.30.0.31:11311
 rostopic hz /merged_colored_cloud
 ```
 
-Both processes advertise the same Surface address, which is correct. They use
+Both processes advertise the same server address, which is correct. They use
 different masters because their `ROS_MASTER_URI` values differ.
 
 If one unified native ROS graph is required, deploy an explicit ROS 1
@@ -249,11 +266,12 @@ is not the repository default.
 
 Before connecting all units simultaneously, confirm:
 
-- every sensor-computer `ROS_IP` is unique;
-- every FLIR persistent IP and serial is unique;
-- every Livox static IP and broadcast code is unique;
-- each sensor computer's `ROS_MASTER_URI` points to itself;
-- the Surface remains `10.20.0.10/24` and runs no competing `roscore`;
-- the switch has no port isolation/VLAN separation between these ports;
-- the firewall permits `10.20.0.10` to reach device ports `11311`, `9090`, and
+- every server-facing sensor-computer `ROS_IP` is unique;
+- each sensor computer's `ROS_MASTER_URI` points to its own server-facing IP;
+- the server remains `10.30.0.10/24` and runs no competing `roscore`;
+- every rig's sensor LAN is physically separate or VLAN-isolated from other
+  rigs and the server network;
+- FLIR serials and Livox broadcast codes match the physical rig;
+- duplicate FLIR/Livox IPs are used only on isolated sensor LANs;
+- the firewall permits `10.30.0.10` to reach device ports `11311`, `9090`, and
   the native ROS dynamic TCP range.
