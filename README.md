@@ -65,6 +65,46 @@ The fixed endpoints are:
 - ROS Master/TCPROS discovery: `http://10.20.0.21:11311`
 - Direct device ROSBridge: `ws://10.20.0.21:9090`
 
+### Persistent addresses on this unit
+
+These values remain after restart: the sensor computer addresses are saved in
+its NetworkManager Ethernet profile; the FLIR persistent address is saved in
+the camera; and the Livox address/broadcast code are saved in the LiDAR. The
+same values are recorded in `src/node_pc/config/network.env` so the pipeline
+uses the correct hardware.
+
+| Component | Persistent value on this unit |
+| --- | --- |
+| Sensor computer Ethernet (`eth0`) | `10.20.0.21/24` (ROS/server side), `192.168.1.50/24` (Livox side) |
+| FLIR Blackfly S, serial `24510717` | `10.20.0.22/24` |
+| Livox Avia, broadcast code `3JEDLB30015Y251` | `192.168.1.125/24` |
+| ROSBridge | `ws://10.20.0.21:9090` |
+
+When two sensor units are connected to the same server/switch, every address
+must be unique. Use this allocation for a second instance:
+
+| Component | Unit 1 | Unit 2 |
+| --- | --- | --- |
+| Sensor computer / ROSBridge | `10.20.0.21` / port `9090` | `10.20.0.31` / port `9090` |
+| FLIR camera | `10.20.0.22` | `10.20.0.32` |
+| Livox host address | `192.168.1.50` | `192.168.1.51` |
+| Livox LiDAR | `192.168.1.125` | `192.168.1.126` |
+
+On the new sensor computer, run the included helper once with its own camera
+serial and Livox broadcast code; it persists the PC addresses and updates its
+local `network.env`:
+
+```bash
+./scripts/configure_sensor_unit.sh "ROS Sensor Unit 2" eth0 \
+  10.20.0.31 10.20.0.32 192.168.1.51 192.168.1.126 \
+  NEW_FLIR_SERIAL NEW_LIVOX_BROADCAST_CODE
+```
+
+Then set the FLIR and Livox devices to the listed unique persistent addresses.
+The server consumes their final outputs separately at
+`ws://10.20.0.21:9090` and `ws://10.20.0.31:9090`; it does not need direct
+access to either camera or LiDAR.
+
 ### Physical connection quick start
 
 Use the following addresses on the real sensor-to-surface network:
@@ -135,12 +175,12 @@ only need access to the sensor's fixed TCP port `9090`.
 There are two separate layers of address configuration:
 
 1. The operating system assigns addresses to the physical interface. On this
-   device, NetworkManager's `Wired connection 2` profile keeps the DHCP address
-   (currently `129.94.238.20/22`) and also assigns the fixed secondary address
-   `10.20.0.21/24` to `eth0`.
+   device, the NetworkManager Ethernet profile assigns the fixed addresses
+   `10.20.0.21/24` and `192.168.1.50/24` to `eth0`.
 2. `network.env` tells ROS which already-assigned address to advertise and where
-   to find the ROS Master. Editing `network.env` alone does **not** add or change
-   an address on `eth0`.
+   to find the ROS Master, and records the FLIR/Livox identifiers. Editing
+   `network.env` alone does **not** add or change an address on `eth0` or a
+   sensor device.
 
 The repository's `network.env` contains the device's literal fixed address and
 its local ROS Master address; neither is derived from the runtime host:
