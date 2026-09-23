@@ -1,0 +1,11 @@
+[Unit]
+Description=Remove expired ROS logs for the sensor pipeline
+
+[Service]
+Type=oneshot
+User=rock
+WorkingDirectory=/home/rock/catkin_ws_actual
+ExecStart=/home/rock/catkin_ws_actual/scripts/cleanup_ros_logs.sh --days 90 --apply
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node-pc-log-cleanup

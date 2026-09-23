@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily cleanup of expired ROS sensor-pipeline logs
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=1d
+Persistent=true
+Unit=node-pc-log-cleanup.service
+
+[Install]
+WantedBy=timers.target

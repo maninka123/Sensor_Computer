@@ -100,6 +100,14 @@ After pulling service-file changes from GitHub, rerun
 `./scripts/install_boot_service.sh` so the repository copy is installed into
 `/etc/systemd/system`.
 
+ROS logs are retained for 90 days. Cleanup runs safely at pipeline startup and,
+after installing the boot service, once per day. Preview or run it manually:
+
+```bash
+./scripts/cleanup_ros_logs.sh --days 90
+./scripts/cleanup_ros_logs.sh --days 90 --apply
+```
+
 Stop now but keep boot startup enabled:
 
 ```bash

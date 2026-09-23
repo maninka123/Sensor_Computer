@@ -71,6 +71,14 @@ for executable in "${required_executables[@]}"; do
   fi
 done
 
+# Bound ROS log growth even on devices that have not installed the optional
+# daily cleanup timer yet. Log cleanup failure must not block sensor startup.
+ROS_LOG_RETENTION_DAYS="${ROS_LOG_RETENTION_DAYS:-90}"
+if [[ -x "$WS_DIR/scripts/cleanup_ros_logs.sh" ]]; then
+  "$WS_DIR/scripts/cleanup_ros_logs.sh" --days "$ROS_LOG_RETENTION_DAYS" --apply ||
+    echo "[pipeline] WARNING: ROS log cleanup failed; continuing startup" >&2
+fi
+
 ROSBAG_MODE="${ROSBAG:-false}"
 ROSBRIDGE_MODE="${ROSBRIDGE:-true}"
 ROSBRIDGE_ADDRESS="${ROSBRIDGE_ADDRESS:-0.0.0.0}"
