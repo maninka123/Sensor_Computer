@@ -84,6 +84,9 @@ systemctl status node-pc.service
 ./monitor_pipeline.sh
 ```
 
+- The monitor uses the colourizer's actual matched-frame result for sync status.
+- It avoids subscribing to large intermediate clouds, keeping diagnostic load low.
+
 Stop now but keep boot startup enabled:
 
 ```bash
@@ -143,6 +146,9 @@ camera; and the Livox uses its configured address and broadcast code.
 `src/node_pc/config/network.env` records these values for the pipeline. Do not
 edit it alone to change an IP: the computer or sensor device must be configured
 to use the same address.
+
+The FLIR transport defaults to 1400-byte packets, paced delivery, packet resend,
+and 64 host buffers so it remains stable on a standard MTU-1500 shared switch.
 
 ### Second sensor unit
 

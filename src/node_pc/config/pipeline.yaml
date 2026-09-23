@@ -49,10 +49,6 @@ pointcloud_voxel_filter:
   queue_size: 2
   verbose: false
 
-# Monitor status sync tolerance for LiDAR vs Camera timestamp comparison
-monitor_status:
-  sync_tolerance: 0.1  # seconds - threshold to consider timestamps as synced
-
 image_enhancer:
   enabled: 0
   input_topic: "/camera/image_raw"

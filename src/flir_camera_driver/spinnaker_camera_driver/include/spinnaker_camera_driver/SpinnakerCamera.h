@@ -150,6 +150,9 @@ public:
   // TODO(mhosmar): Implement later
   void setTimeout(const double& timeout);
 
+  /** Configure conservative GigE packet delivery and host stream buffers. */
+  void configureGigETransport(uint64_t packet_size, uint64_t packet_delay, uint64_t buffer_count);
+
   /*!
   * \brief Used to set the serial number for the camera you wish to connect to.
   *

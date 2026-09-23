@@ -68,6 +68,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <dynamic_reconfigure/server.h>  // Needed for the dynamic_reconfigure gui service to run
 
+#include <algorithm>
 #include <fstream>
 #include <memory>
 #include <string>
@@ -516,6 +517,17 @@ private:
             spinnaker_.connect();
 
             NODELET_DEBUG("Connected to camera.");
+
+            int packet_size;
+            int packet_delay;
+            int stream_buffer_count;
+            getMTPrivateNodeHandle().param("gev_scps_packet_size", packet_size, 1400);
+            getMTPrivateNodeHandle().param("gev_scpd", packet_delay, 1000);
+            getMTPrivateNodeHandle().param("stream_buffer_count", stream_buffer_count, 64);
+            spinnaker_.configureGigETransport(
+                static_cast<uint64_t>(std::max(576, packet_size)),
+                static_cast<uint64_t>(std::max(0, packet_delay)),
+                static_cast<uint64_t>(std::max(4, stream_buffer_count)));
 
             // Set last configuration, forcing the reconfigure level to stop
             spinnaker_.setNewConfiguration(config_, SpinnakerCamera::LEVEL_RECONFIGURE_STOP);

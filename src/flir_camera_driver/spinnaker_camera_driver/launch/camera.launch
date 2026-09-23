@@ -38,6 +38,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <arg name="frame_rate"                default="35" />
   <arg name="x_binning"                 default="1" />
   <arg name="y_binning"                 default="1" />
+  <!-- Conservative GigE settings that work with a standard 1500-byte MTU. -->
+  <arg name="gev_scps_packet_size"       default="1400" />
+  <arg name="gev_scpd"                   default="1000" />
+  <arg name="stream_buffer_count"        default="64" />
 
   <!-- Disabling ISP will dramatically increase frame-rate. However, it can only be 
       disabled when using Bayer encoding (e.g. BayerRG8)-->
@@ -73,6 +77,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
       <param name="serial"                          value="$(arg camera_serial)" />
       <param name="device_type"                     value="$(arg device_type)" />
       <param name="timeout"                         value="5.0" />
+      <param name="gev_scps_packet_size"            value="$(arg gev_scps_packet_size)" />
+      <param name="gev_scpd"                        value="$(arg gev_scpd)" />
+      <param name="stream_buffer_count"             value="$(arg stream_buffer_count)" />
 
       <!-- Frame rate -->
       <param name="acquisition_frame_rate_enable"   value="$(arg control_frame_rate)" />

@@ -42,6 +42,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "spinnaker_camera_driver/SpinnakerCamera.h"
 
+#include <algorithm>
 #include <iostream>
 #include <sstream>
 #include <typeinfo>
@@ -322,6 +323,60 @@ void SpinnakerCamera::start()
   {
     throw std::runtime_error("[SpinnakerCamera::start] Failed to start capture with error: " + std::string(e.what()));
   }
+}
+
+void SpinnakerCamera::configureGigETransport(uint64_t packet_size, uint64_t packet_delay,
+                                             uint64_t buffer_count)
+{
+  if (!pCam_ || !node_map_)
+    return;
+
+  auto set_integer = [](Spinnaker::GenApi::INodeMap& map, const char* name, uint64_t requested) {
+    Spinnaker::GenApi::CIntegerPtr node = map.GetNode(name);
+    if (!IsAvailable(node) || !IsWritable(node))
+      return false;
+    int64_t value = std::max<int64_t>(node->GetMin(),
+        std::min<int64_t>(node->GetMax(), static_cast<int64_t>(requested)));
+    const int64_t increment = node->GetInc();
+    if (increment > 1)
+      value = node->GetMin() + ((value - node->GetMin()) / increment) * increment;
+    node->SetValue(value);
+    ROS_INFO_STREAM("[SpinnakerCamera] " << name << " set to " << value);
+    return true;
+  };
+
+  auto set_boolean = [](Spinnaker::GenApi::INodeMap& map, const char* name, bool value) {
+    Spinnaker::GenApi::CBooleanPtr node = map.GetNode(name);
+    if (!IsAvailable(node) || !IsWritable(node))
+      return false;
+    node->SetValue(value);
+    ROS_INFO_STREAM("[SpinnakerCamera] " << name << " set to " << value);
+    return true;
+  };
+
+  auto set_enumeration = [](Spinnaker::GenApi::INodeMap& map, const char* name,
+                            const char* entry_name) {
+    Spinnaker::GenApi::CEnumerationPtr node = map.GetNode(name);
+    if (!IsAvailable(node) || !IsWritable(node))
+      return false;
+    Spinnaker::GenApi::CEnumEntryPtr entry = node->GetEntryByName(entry_name);
+    if (!IsAvailable(entry) || !IsReadable(entry))
+      return false;
+    node->SetIntValue(entry->GetValue());
+    ROS_INFO_STREAM("[SpinnakerCamera] " << name << " set to " << entry_name);
+    return true;
+  };
+
+  // Keep GVSP packets below the host's 1500-byte MTU.  This remains reliable
+  // through ordinary switches and USB Ethernet adapters without jumbo frames.
+  set_integer(*node_map_, "GevSCPSPacketSize", packet_size);
+  set_integer(*node_map_, "GevSCPD", packet_delay);
+
+  Spinnaker::GenApi::INodeMap& stream_map = pCam_->GetTLStreamNodeMap();
+  set_enumeration(stream_map, "StreamBufferCountMode", "Manual");
+  set_integer(stream_map, "StreamBufferCountManual", buffer_count);
+  set_enumeration(stream_map, "StreamBufferHandlingMode", "NewestOnly");
+  set_boolean(stream_map, "StreamPacketResendEnable", true);
 }
 
 void SpinnakerCamera::stop()

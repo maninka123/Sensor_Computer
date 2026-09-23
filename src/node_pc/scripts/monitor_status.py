@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""
-ROS monitor that keeps a single updating dashboard:
-- Live Hz per topic (green = receiving, red = stale).
-- Timestamp offset between shifted LiDAR and camera image.
-- Enhancement status from topic and param.
+"""Low-overhead live dashboard for the sensor pipeline.
+
+Only the raw sensor streams are sampled.  Large intermediate clouds are not
+subscribed here because doing so copies/deserialises them purely for display.
+Fusion synchronization is reported from the colourizer's actual matching
+result, not by comparing whichever camera and LiDAR messages arrived last.
 """
 
 import collections
 import sys
 import time
 import threading
-from collections import deque
 
 import rospy
 import rosnode
@@ -57,66 +57,6 @@ class RateTracker:
             return self.last_stamp
 
 
-class TimestampSyncTracker:
-    """Tracks timestamp differences between two topics for sync monitoring."""
-    def __init__(self, max_samples=100):
-        self.lidar_stamps = deque(maxlen=max_samples)
-        self.camera_stamps = deque(maxlen=max_samples)
-        self.offsets = deque(maxlen=max_samples)
-        self.lock = threading.Lock()
-        self.last_lidar_stamp = None
-        self.last_camera_stamp = None
-        self.last_offset = None
-
-    def update_lidar(self, stamp):
-        t = stamp.to_sec()
-        with self.lock:
-            self.last_lidar_stamp = t
-            self.lidar_stamps.append((t, time.time()))
-            self._compute_offset()
-
-    def update_camera(self, stamp):
-        t = stamp.to_sec()
-        with self.lock:
-            self.last_camera_stamp = t
-            self.camera_stamps.append((t, time.time()))
-            self._compute_offset()
-
-    def _compute_offset(self):
-        """Find closest matching timestamps and compute offset."""
-        if not self.lidar_stamps or not self.camera_stamps:
-            return
-        
-        # Get most recent stamps
-        lidar_t = self.lidar_stamps[-1][0]
-        camera_t = self.camera_stamps[-1][0]
-        
-        # Only compute if both were received recently (within 1 sec wall time)
-        lidar_wall = self.lidar_stamps[-1][1]
-        camera_wall = self.camera_stamps[-1][1]
-        
-        if abs(lidar_wall - camera_wall) < 1.0:
-            offset = lidar_t - camera_t
-            self.last_offset = offset
-            self.offsets.append(offset)
-
-    def get_stats(self):
-        with self.lock:
-            if not self.offsets:
-                return None, None, None, None
-            
-            offsets_list = list(self.offsets)
-            mean_offset = sum(offsets_list) / len(offsets_list)
-            min_offset = min(offsets_list)
-            max_offset = max(offsets_list)
-            
-            return self.last_offset, mean_offset, min_offset, max_offset
-
-    def get_last_stamps(self):
-        with self.lock:
-            return self.last_lidar_stamp, self.last_camera_stamp
-
-
 class TopicMonitor:
     def __init__(self):
         rospy.init_node("node_pc_status_monitor", anonymous=True)
@@ -138,23 +78,17 @@ class TopicMonitor:
         )
         self.enhancement_param = rospy.get_param("/pointcloud_colorizer/image_enchantment", None)
         
-        # Sync tolerance from config (default 0.1 sec)
-        self.sync_tolerance = rospy.get_param("/monitor_status/sync_tolerance", 0.1)
-
-        # Sync tracker for shifted LiDAR vs camera
-        self.sync_tracker = TimestampSyncTracker()
+        self.min_synchronized_frames = rospy.get_param(
+            "/pointcloud_colorizer/min_synchronized_frames", 3
+        )
 
         # Sections and topics (ordered)
         self.sections = [
             ("LiDAR", [
                 ("/livox/lidar", PointCloud2, "Raw"),
-                ("/livox/lidar_shifted", PointCloud2, "Shifted"),
-                ("/livox/lidar_merged", PointCloud2, "Merged"),
-                ("/livox/lidar_filtered", PointCloud2, "Per-frame filtered"),
             ]),
             ("Camera", [
                 ("/camera/image_raw", Image, "Raw"),
-                ("/camera/image_enhanced", Image, "Enhanced"),
             ]),
             ("Combined", [
                 ("/merged_colored_cloud", PointCloud2, "Colorized cloud"),
@@ -169,17 +103,13 @@ class TopicMonitor:
             for topic, msg_type, _ in items:
                 if topic not in self.tracks:
                     self.tracks[topic] = RateTracker()
-                    # Only these two streams need decoded headers for sync.
-                    # AnyMsg avoids deserialising every point/image payload for
-                    # rate-only rows, keeping the monitor lightweight.
-                    subscription_type = (
-                        msg_type
-                        if topic in ("/livox/lidar_shifted", "/camera/image_raw")
-                        else rospy.AnyMsg
-                    )
+                    # Decode only the small header-bearing raw sensor messages.
+                    # The colourized row is ticked by its tiny status topic.
+                    if topic == "/merged_colored_cloud":
+                        continue
                     rospy.Subscriber(
                         topic,
-                        subscription_type,
+                        msg_type if topic == "/camera/image_raw" else rospy.AnyMsg,
                         self._cb,
                         callback_args=topic,
                         queue_size=1,
@@ -215,12 +145,6 @@ class TopicMonitor:
         
         self.tracks[topic].tick(stamp)
         
-        # Track sync between shifted lidar and camera
-        if topic == "/livox/lidar_shifted":
-            self.sync_tracker.update_lidar(stamp)
-        elif topic == "/camera/image_raw":
-            self.sync_tracker.update_camera(stamp)
-
     def _enh_cb(self, msg):
         self.enhancement_flag = bool(msg.data)
 
@@ -238,6 +162,9 @@ class TopicMonitor:
 
     def _input_frames_cb(self, msg):
         self.input_frames = int(msg.data)
+        # A status message is emitted for every completed or dropped fusion
+        # batch, so it is an exact lightweight output-processing heartbeat.
+        self.tracks["/merged_colored_cloud"].tick(rospy.Time.now())
 
     def _point_count_cb(self, msg):
         self.point_count = int(msg.data)
@@ -307,32 +234,28 @@ class TopicMonitor:
                 stamp_str = f"[stamp: {last_stamp:.2f}]" if last_stamp else "[no data]"
                 lines.append(f"  {label:15s} {status}  {stamp_str}")
 
-        # Sync status between shifted LiDAR and camera
-        lines.append(f"\n== Timestamp Sync (LiDAR_shifted vs Camera) ==")
-        last_offset, mean_offset, min_offset, max_offset = self.sync_tracker.get_stats()
-        lidar_stamp, camera_stamp = self.sync_tracker.get_last_stamps()
-        
-        if lidar_stamp is not None and camera_stamp is not None:
-            lines.append(f"  LiDAR shifted stamp:  {lidar_stamp:.3f}")
-            lines.append(f"  Camera stamp:         {camera_stamp:.3f}")
-            
-            if last_offset is not None:
-                # Good sync if offset is within sync_tolerance from config
-                sync_ok = abs(last_offset) < self.sync_tolerance
-                offset_str = self._color(f"{last_offset:+.4f} sec", sync_ok)
-                lines.append(f"  Current offset:       {offset_str}")
-                lines.append(f"  Mean offset:          {mean_offset:+.4f} sec")
-                lines.append(f"  Range:                [{min_offset:+.4f}, {max_offset:+.4f}] sec")
-                lines.append(f"  Sync tolerance:       {self.sync_tolerance:.4f} sec")
-                
-                if sync_ok:
-                    lines.append(f"  Status:               {self._color('SYNCED', True)}")
-                else:
-                    lines.append(f"  Status:               {self._color('OUT OF SYNC', False)}")
-            else:
-                lines.append(f"  Offset:               {self._yellow('calculating...')}")
-        else:
+        # This is the colourizer's real nearest-image matching result.  A
+        # latest-vs-latest timestamp comparison is invalid for 10 Hz LiDAR and
+        # 35 Hz camera streams and used to make the dashboard flicker red.
+        lines.append("\n== Fusion Synchronization (actual batch result) ==")
+        if self.matched_frames is None or self.input_frames is None:
             lines.append(f"  Status:               {self._yellow('Waiting for data...')}")
+        else:
+            valid = self.matched_frames >= self.min_synchronized_frames
+            complete = self.matched_frames == self.input_frames
+            if complete:
+                label = "SYNCED"
+            elif valid:
+                label = "SYNCED (PARTIAL)"
+            else:
+                label = "DROPPED / INSUFFICIENT MATCHES"
+            lines.append(
+                f"  Matched frames:       {self.matched_frames}/{self.input_frames}"
+            )
+            lines.append(
+                f"  Required minimum:     {self.min_synchronized_frames}"
+            )
+            lines.append(f"  Status:               {self._color(label, valid)}")
 
         # Enhancement status
         lines.append(f"\n== Image Enhancement ==")
