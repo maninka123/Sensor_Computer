@@ -221,6 +221,20 @@ private:
   void pushImage(std::deque<sensor_msgs::ImageConstPtr>& buffer,
                  const sensor_msgs::ImageConstPtr& msg)
   {
+    if (!msg || msg->width == 0 || msg->height == 0 || msg->step == 0 || msg->data.empty())
+    {
+      ROS_WARN_STREAM_THROTTLE(2.0,
+          "Ignoring an empty camera frame instead of passing it to cv_bridge");
+      return;
+    }
+    const std::size_t required_bytes = static_cast<std::size_t>(msg->step) * msg->height;
+    if (msg->data.size() < required_bytes)
+    {
+      ROS_WARN_STREAM_THROTTLE(2.0,
+          "Ignoring a truncated camera frame: received " << msg->data.size()
+          << " bytes, expected at least " << required_bytes);
+      return;
+    }
     if (!buffer.empty() && msg->header.stamp < buffer.back()->header.stamp)
     {
       // Rosbag loops and sensor-clock resets must not mix images or pending
@@ -486,14 +500,26 @@ private:
       }
       try
       {
-        selected[groups[i].index] = cv_bridge::toCvShare(
+        const cv_bridge::CvImageConstPtr converted = cv_bridge::toCvShare(
             candidates[j], sensor_msgs::image_encodings::BGR8);
+        if (!converted || converted->image.empty())
+        {
+          ROS_WARN_STREAM("Ignoring an empty decoded image for frame " << groups[i].index);
+        }
+        else
+        {
+          selected[groups[i].index] = converted;
+        }
       }
       catch (const cv_bridge::Exception& error)
       {
         ROS_WARN_STREAM("Cannot decode synchronized image for frame " << groups[i].index
                         << ": " << error.what());
-        return false;
+      }
+      catch (const cv::Exception& error)
+      {
+        ROS_WARN_STREAM("OpenCV rejected synchronized image for frame " << groups[i].index
+                        << ": " << error.what());
       }
       ++i;
       ++j;

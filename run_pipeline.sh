@@ -49,12 +49,27 @@ echo "[pipeline] Sourcing workspace..."
 # them, then restore strict mode for this wrapper.
 set +u
 source /opt/ros/noetic/setup.bash
-if [ -f "$WS_DIR/devel/setup.bash" ]; then
-  source "$WS_DIR/devel/setup.bash"
-else
-  echo "[pipeline] WARNING: devel/setup.bash not found; did you run catkin_make?"
+if [[ ! -r "$WS_DIR/devel/setup.bash" ]]; then
+  echo "[pipeline] ERROR: $WS_DIR/devel/setup.bash is missing." >&2
+  echo "[pipeline] Build the workspace with: cd $WS_DIR && catkin_make" >&2
+  exit 1
 fi
+source "$WS_DIR/devel/setup.bash"
 set -u
+
+required_executables=(
+  "$WS_DIR/devel/lib/node_pc/lidar_timestamp_shift_node"
+  "$WS_DIR/devel/lib/node_pc/pointcloud_merge_node"
+  "$WS_DIR/devel/lib/node_pc/pointcloud_voxel_filter_node"
+  "$WS_DIR/devel/lib/node_pc/pointcloud_colorize_node"
+)
+for executable in "${required_executables[@]}"; do
+  if [[ ! -x "$executable" ]]; then
+    echo "[pipeline] ERROR: required executable is missing: $executable" >&2
+    echo "[pipeline] Rebuild the workspace with: cd $WS_DIR && catkin_make" >&2
+    exit 1
+  fi
+done
 
 ROSBAG_MODE="${ROSBAG:-false}"
 ROSBRIDGE_MODE="${ROSBRIDGE:-true}"

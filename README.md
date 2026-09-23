@@ -68,7 +68,9 @@ See [Testing without sensor hardware](docs/TESTING.md) for bag details.
 - Waits only for this PC's fixed `eth0` addresses.
 - Does not wait for the remote server.
 - Starts the complete live-sensor pipeline and ROSBridge.
-- Restarts after a process failure.
+- Requires live camera, LiDAR, and colourised-cloud messages before systemd
+  declares startup successful.
+- Restarts indefinitely after a failed health check or essential process exit.
 
 Install and enable it for the next boot:
 
@@ -86,6 +88,17 @@ systemctl status node-pc.service
 
 - The monitor uses the colourizer's actual matched-frame result for sync status.
 - It avoids subscribing to large intermediate clouds, keeping diagnostic load low.
+
+If startup fails or the output is missing, collect the service, network routes,
+ROS nodes, topic rates, and recent logs in one command:
+
+```bash
+./scripts/pipeline_diagnostics.sh
+```
+
+After pulling service-file changes from GitHub, rerun
+`./scripts/install_boot_service.sh` so the repository copy is installed into
+`/etc/systemd/system`.
 
 Stop now but keep boot startup enabled:
 

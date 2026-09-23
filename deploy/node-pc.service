@@ -2,6 +2,7 @@
 Description=Underground sensing and colourised point-cloud pipeline
 Wants=network-online.target NetworkManager.service
 After=network-online.target NetworkManager.service
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -13,13 +14,22 @@ EnvironmentFile=/home/rock/catkin_ws_actual/src/node_pc/config/network.env
 Environment="NODE_PC_NETWORK_CONFIG=/home/rock/catkin_ws_actual/src/node_pc/config/network.env"
 Environment="ROSBAG=false"
 Environment="ROSBRIDGE=true"
+Environment="PYTHONUNBUFFERED=1"
 
 # Wait only for this sensor computer's persistent local addresses. The remote
 # server may be disconnected and can connect to ROSBridge later.
 ExecStartPre=/home/rock/catkin_ws_actual/scripts/wait_for_local_network.sh eth0 60
 ExecStart=/home/rock/catkin_ws_actual/run_pipeline.sh
-Restart=on-failure
-RestartSec=5
+ExecStartPost=/home/rock/catkin_ws_actual/scripts/verify_pipeline_startup.sh 90
+Restart=always
+RestartSec=10
+TimeoutStartSec=120
+TimeoutStopSec=30
+KillSignal=SIGINT
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node-pc
 
 [Install]
 WantedBy=multi-user.target
