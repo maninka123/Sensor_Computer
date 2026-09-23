@@ -75,9 +75,14 @@ ROSBAG_MODE="${ROSBAG:-false}"
 ROSBRIDGE_MODE="${ROSBRIDGE:-true}"
 ROSBRIDGE_ADDRESS="${ROSBRIDGE_ADDRESS:-0.0.0.0}"
 ROSBRIDGE_PORT="${ROSBRIDGE_PORT:-9090}"
+PIPELINE_RESTART_DELAY="${PIPELINE_RESTART_DELAY:-10}"
 
 if [[ ! "$ROSBRIDGE_PORT" =~ ^[0-9]+$ ]] || (( ROSBRIDGE_PORT < 1 || ROSBRIDGE_PORT > 65535 )); then
   echo "[pipeline] ERROR: ROSBRIDGE_PORT must be between 1 and 65535" >&2
+  exit 1
+fi
+if [[ ! "$PIPELINE_RESTART_DELAY" =~ ^[0-9]+$ ]] || (( PIPELINE_RESTART_DELAY < 1 )); then
+  echo "[pipeline] ERROR: PIPELINE_RESTART_DELAY must be a positive integer" >&2
   exit 1
 fi
 
@@ -88,11 +93,51 @@ echo "  - rosbag=false : start the Livox/FLIR drivers and the processing pipelin
 echo "  - rosbag=true  : skip sensor drivers; raw topics come from rosbag playback"
 echo "  - rosbridge=true: also start rosbridge and the TF web republisher"
 
-exec roslaunch node_pc pipeline.launch \
-  rosbag:="${ROSBAG_MODE}" \
-  rosbridge:="${ROSBRIDGE_MODE}" \
-  rosbridge_address:="${ROSBRIDGE_ADDRESS}" \
-  rosbridge_port:="${ROSBRIDGE_PORT}" \
-  ros_ip:="${ROS_IP}" \
-  ros_master_uri:="${ROS_MASTER_URI}" \
-  "$@"
+# roslaunch returns success when a required child exits cleanly. That would
+# leave an older Restart=on-failure systemd unit inactive, even though the
+# sensor pipeline is gone. Supervise roslaunch here as a second recovery layer
+# so both old and newly installed service units recover from child-node exits.
+shutdown_requested=false
+child_pid=""
+request_shutdown() {
+  shutdown_requested=true
+  if [[ -n "$child_pid" ]]; then
+    kill -INT "$child_pid" 2>/dev/null || true
+  fi
+}
+trap request_shutdown INT TERM
+
+while true; do
+  echo "[pipeline] Launching ROS pipeline..."
+  set +e
+  roslaunch node_pc pipeline.launch \
+    rosbag:="${ROSBAG_MODE}" \
+    rosbridge:="${ROSBRIDGE_MODE}" \
+    rosbridge_address:="${ROSBRIDGE_ADDRESS}" \
+    rosbridge_port:="${ROSBRIDGE_PORT}" \
+    ros_ip:="${ROS_IP}" \
+    ros_master_uri:="${ROS_MASTER_URI}" \
+    "$@" &
+  child_pid=$!
+  wait "$child_pid"
+  launch_status=$?
+  set -e
+  child_pid=""
+
+  if [[ "$shutdown_requested" == true ]]; then
+    echo "[pipeline] Shutdown requested; not restarting"
+    exit 0
+  fi
+
+  echo "[pipeline] ERROR: roslaunch exited with status $launch_status; restarting in ${PIPELINE_RESTART_DELAY}s" >&2
+  sleep "$PIPELINE_RESTART_DELAY" &
+  child_pid=$!
+  set +e
+  wait "$child_pid"
+  set -e
+  child_pid=""
+  if [[ "$shutdown_requested" == true ]]; then
+    echo "[pipeline] Shutdown requested during restart delay"
+    exit 0
+  fi
+done
