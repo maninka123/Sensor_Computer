@@ -44,11 +44,17 @@ if [[ ! "${ROS_MASTER_URI:-}" =~ ^http://[^/]+:[0-9]+/?$ ]]; then
 fi
 
 echo "[pipeline] Sourcing workspace..."
+# ROS/catkin setup scripts probe variables that may legitimately be unset in a
+# clean systemd environment. Temporarily disable nounset only while sourcing
+# them, then restore strict mode for this wrapper.
+set +u
+source /opt/ros/noetic/setup.bash
 if [ -f "$WS_DIR/devel/setup.bash" ]; then
   source "$WS_DIR/devel/setup.bash"
 else
   echo "[pipeline] WARNING: devel/setup.bash not found; did you run catkin_make?"
 fi
+set -u
 
 ROSBAG_MODE="${ROSBAG:-false}"
 ROSBRIDGE_MODE="${ROSBRIDGE:-true}"

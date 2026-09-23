@@ -9,8 +9,10 @@ if [[ ! -r "$NETWORK_CONFIG" ]]; then
   exit 1
 fi
 
+set +u
 source /opt/ros/noetic/setup.bash
 source "$WS_DIR/devel/setup.bash"
+set -u
 
 set -a
 # shellcheck disable=SC1090
