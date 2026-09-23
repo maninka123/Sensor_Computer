@@ -156,10 +156,23 @@ the raw pipeline continues throughout.
 Useful checks while the pipeline is running:
 
 ```bash
-rosrun node_pc monitor_status.py
-rostopic hz /camera/image_raw /livox/lidar /merged_colored_cloud
-rostopic echo /temperature
+cd ~/catkin_ws_actual
+./monitor_pipeline.sh
 ```
+
+The colour terminal dashboard shows:
+
+- Overall pipeline, camera, LiDAR, and ROSBridge state
+- Rates for all main sensor and processing topics
+- CPU temperature and enhancement state
+- LiDAR/camera timestamp synchronization
+- Voxel state and leaf size
+- Matched frames, output point count, and dropped batches
+
+The boot service stays in the background; it does not open a desktop terminal.
+Open a terminal and run the monitor only when needed. Stop only the monitor with
+`Ctrl+C`; the pipeline continues running. The monitor uses queue size 1 and
+avoids decoding large payloads where possible, so its CPU overhead is small.
 
 ## Raw vs enhanced image
 

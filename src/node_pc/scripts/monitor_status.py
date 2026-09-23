@@ -13,8 +13,9 @@ import threading
 from collections import deque
 
 import rospy
+import rosnode
 from sensor_msgs.msg import Image, Imu, PointCloud2
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32, Float64, UInt32
 
 
 class RateTracker:
@@ -123,6 +124,15 @@ class TopicMonitor:
 
         self.tracks = {}
         self.enhancement_flag = None
+        self.temperature = None
+        self.voxel_enabled = None
+        self.voxel_leaf_size = None
+        self.matched_frames = None
+        self.input_frames = None
+        self.point_count = None
+        self.dropped_batches = None
+        self.rosbridge_running = None
+        self.last_node_check = 0.0
         self.enhancement_topic = rospy.get_param(
             "~image_enchantment_topic", "/image_enhancement/status"
         )
@@ -159,9 +169,39 @@ class TopicMonitor:
             for topic, msg_type, _ in items:
                 if topic not in self.tracks:
                     self.tracks[topic] = RateTracker()
-                    rospy.Subscriber(topic, msg_type, self._cb, callback_args=topic, queue_size=5)
+                    # Only these two streams need decoded headers for sync.
+                    # AnyMsg avoids deserialising every point/image payload for
+                    # rate-only rows, keeping the monitor lightweight.
+                    subscription_type = (
+                        msg_type
+                        if topic in ("/livox/lidar_shifted", "/camera/image_raw")
+                        else rospy.AnyMsg
+                    )
+                    rospy.Subscriber(
+                        topic,
+                        subscription_type,
+                        self._cb,
+                        callback_args=topic,
+                        queue_size=1,
+                        buff_size=16 * 1024 * 1024,
+                    )
 
         rospy.Subscriber(self.enhancement_topic, Bool, self._enh_cb, queue_size=5)
+        rospy.Subscriber("/temperature", Float32, self._temperature_cb, queue_size=1)
+        rospy.Subscriber("/voxel_downsampling/status", Bool, self._voxel_cb, queue_size=1)
+        rospy.Subscriber("/voxel_leaf_size/status", Float64, self._leaf_size_cb, queue_size=1)
+        rospy.Subscriber(
+            "/merged_colored_cloud/matched_frames", UInt32, self._matched_cb, queue_size=1
+        )
+        rospy.Subscriber(
+            "/merged_colored_cloud/input_frames", UInt32, self._input_frames_cb, queue_size=1
+        )
+        rospy.Subscriber(
+            "/merged_colored_cloud/point_count", UInt32, self._point_count_cb, queue_size=1
+        )
+        rospy.Subscriber(
+            "/merged_colored_cloud/dropped_batches", UInt32, self._dropped_cb, queue_size=1
+        )
 
         self.report_interval = 1.0
         self._stop = False
@@ -184,6 +224,27 @@ class TopicMonitor:
     def _enh_cb(self, msg):
         self.enhancement_flag = bool(msg.data)
 
+    def _temperature_cb(self, msg):
+        self.temperature = float(msg.data)
+
+    def _voxel_cb(self, msg):
+        self.voxel_enabled = bool(msg.data)
+
+    def _leaf_size_cb(self, msg):
+        self.voxel_leaf_size = float(msg.data)
+
+    def _matched_cb(self, msg):
+        self.matched_frames = int(msg.data)
+
+    def _input_frames_cb(self, msg):
+        self.input_frames = int(msg.data)
+
+    def _point_count_cb(self, msg):
+        self.point_count = int(msg.data)
+
+    def _dropped_cb(self, msg):
+        self.dropped_batches = int(msg.data)
+
     def _color(self, text, ok):
         if not self.isatty:
             return text
@@ -194,11 +255,45 @@ class TopicMonitor:
             return text
         return f"\033[93m{text}\033[0m"
 
+    def _cyan(self, text):
+        if not self.isatty:
+            return text
+        return f"\033[96m{text}\033[0m"
+
+    def _check_rosbridge(self):
+        now = time.time()
+        if now - self.last_node_check < 5.0:
+            return
+        self.last_node_check = now
+        try:
+            self.rosbridge_running = "/rosbridge_websocket" in rosnode.get_node_names()
+        except Exception:
+            self.rosbridge_running = False
+
     def _on_timer(self, _event):
+        self._check_rosbridge()
         lines = []
         lines.append("=" * 60)
-        lines.append("  NODE_PC STATUS MONITOR")
+        lines.append(self._cyan("  NODE_PC LIVE STATUS"))
         lines.append("=" * 60)
+
+        camera_ok = not self.tracks["/camera/image_raw"].is_stale()
+        lidar_ok = not self.tracks["/livox/lidar"].is_stale()
+        output_ok = not self.tracks["/merged_colored_cloud"].is_stale()
+        pipeline_ok = camera_ok and lidar_ok and output_ok
+        lines.append("\n== Overall ==")
+        lines.append(
+            f"  Pipeline:   {self._color('RUNNING', True) if pipeline_ok else self._color('WAITING / FAULT', False)}"
+        )
+        lines.append(
+            f"  Camera:     {self._color('RUNNING', True) if camera_ok else self._color('NO DATA', False)}"
+        )
+        lines.append(
+            f"  LiDAR:      {self._color('RUNNING', True) if lidar_ok else self._color('NO DATA', False)}"
+        )
+        lines.append(
+            f"  ROSBridge:  {self._color('RUNNING', True) if self.rosbridge_running else self._color('NOT FOUND', False)}"
+        )
         
         for title, items in self.sections:
             lines.append(f"\n== {title} ==")
@@ -248,6 +343,32 @@ class TopicMonitor:
             enh_bits.append(f"param={bool(self.enhancement_param)}")
         enh_status = " / ".join(enh_bits) if enh_bits else "unknown"
         lines.append(f"  Status: {enh_status}")
+
+        # Temperature and processing configuration/status.
+        lines.append("\n== System and Output ==")
+        if self.temperature is None:
+            temp_text = self._yellow("waiting...")
+        elif self.temperature >= 85.0:
+            temp_text = self._color(f"{self.temperature:.1f} C  THERMAL PROTECTION", False)
+        elif self.temperature >= 80.0:
+            temp_text = self._yellow(f"{self.temperature:.1f} C  HOT")
+        else:
+            temp_text = self._color(f"{self.temperature:.1f} C", True)
+        lines.append(f"  CPU temperature:      {temp_text}")
+        voxel_text = "unknown" if self.voxel_enabled is None else ("ON" if self.voxel_enabled else "OFF")
+        leaf_text = "unknown" if self.voxel_leaf_size is None else f"{self.voxel_leaf_size:.3f} m"
+        lines.append(f"  Voxel downsampling:   {voxel_text}")
+        lines.append(f"  Voxel leaf size:      {leaf_text}")
+        matched_text = (
+            "unknown"
+            if self.matched_frames is None
+            else f"{self.matched_frames}/{self.input_frames if self.input_frames is not None else '?'}"
+        )
+        point_text = "unknown" if self.point_count is None else f"{self.point_count:,}"
+        dropped_text = "unknown" if self.dropped_batches is None else f"{self.dropped_batches:,}"
+        lines.append(f"  Matched frames:       {matched_text}")
+        lines.append(f"  Output points:        {point_text}")
+        lines.append(f"  Dropped batches:      {dropped_text}")
 
         lines.append("\n" + "=" * 60)
         lines.append(f"  Updated: {time.strftime('%H:%M:%S')}")
