@@ -43,6 +43,17 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <arg name="gev_scpd"                   default="1000" />
   <arg name="stream_buffer_count"        default="64" />
 
+  <!-- Let auto exposure compensate for the darker 4x4-binned stream while
+       retaining enough margin to sustain 35 FPS (28.6 ms frame period). -->
+  <arg name="exposure_auto"                  default="Continuous" />
+  <arg name="auto_exposure_time_upper_limit" default="20000" />
+  <arg name="auto_gain"                      default="Continuous" />
+  <arg name="gamma_enable"                   default="True" />
+  <arg name="gamma"                          default="0.8" />
+  <arg name="sharpening_enable"              default="True" />
+  <arg name="auto_sharpness"                 default="True" />
+  <arg name="saturation_enable"               default="False" />
+
   <!-- Disabling ISP will dramatically increase frame-rate. However, it can only be 
       disabled when using Bayer encoding (e.g. BayerRG8)-->
   <arg name="isp_enable"                default="False" /> 
@@ -84,6 +95,16 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
       <!-- Frame rate -->
       <param name="acquisition_frame_rate_enable"   value="$(arg control_frame_rate)" />
       <param name="acquisition_frame_rate"          value="$(arg frame_rate)" />
+
+      <!-- Camera-side brightness control -->
+      <param name="exposure_auto"                   value="$(arg exposure_auto)" />
+      <param name="auto_exposure_time_upper_limit" value="$(arg auto_exposure_time_upper_limit)" />
+      <param name="auto_gain"                       value="$(arg auto_gain)" />
+      <param name="gamma_enable"                    value="$(arg gamma_enable)" />
+      <param name="gamma"                           value="$(arg gamma)" />
+      <param name="sharpening_enable"               value="$(arg sharpening_enable)" />
+      <param name="auto_sharpness"                  value="$(arg auto_sharpness)" />
+      <param name="saturation_enable"                value="$(arg saturation_enable)" />
 
       <!-- Image Processing -->
       <param name="isp_enable"                      value="$(arg isp_enable)" />

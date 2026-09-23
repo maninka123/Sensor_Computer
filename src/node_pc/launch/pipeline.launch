@@ -14,6 +14,14 @@
   <arg name="camera_packet_size" default="$(optenv FLIR_PACKET_SIZE 1400)" />
   <arg name="camera_packet_delay" default="$(optenv FLIR_PACKET_DELAY 1000)" />
   <arg name="camera_stream_buffers" default="$(optenv FLIR_STREAM_BUFFERS 64)" />
+  <arg name="camera_exposure_auto" default="$(optenv FLIR_EXPOSURE_AUTO Continuous)" />
+  <arg name="camera_auto_exposure_limit" default="$(optenv FLIR_AUTO_EXPOSURE_LIMIT_US 20000)" />
+  <arg name="camera_auto_gain" default="$(optenv FLIR_AUTO_GAIN Continuous)" />
+  <arg name="camera_gamma_enable" default="$(optenv FLIR_GAMMA_ENABLE True)" />
+  <arg name="camera_gamma" default="$(optenv FLIR_GAMMA 0.8)" />
+  <arg name="camera_sharpening_enable" default="$(optenv FLIR_SHARPENING_ENABLE True)" />
+  <arg name="camera_auto_sharpness" default="$(optenv FLIR_AUTO_SHARPNESS True)" />
+  <arg name="camera_saturation_enable" default="$(optenv FLIR_SATURATION_ENABLE False)" />
   <arg name="livox_broadcast_code" default="$(optenv LIVOX_BROADCAST_CODE 3JEDLB30015Y251)" />
 
   <!-- Keep the address used by every child explicit. run_pipeline.sh loads
@@ -41,6 +49,14 @@
     <arg name="gev_scps_packet_size" value="$(arg camera_packet_size)" />
     <arg name="gev_scpd" value="$(arg camera_packet_delay)" />
     <arg name="stream_buffer_count" value="$(arg camera_stream_buffers)" />
+    <arg name="exposure_auto" value="$(arg camera_exposure_auto)" />
+    <arg name="auto_exposure_time_upper_limit" value="$(arg camera_auto_exposure_limit)" />
+    <arg name="auto_gain" value="$(arg camera_auto_gain)" />
+    <arg name="gamma_enable" value="$(arg camera_gamma_enable)" />
+    <arg name="gamma" value="$(arg camera_gamma)" />
+    <arg name="sharpening_enable" value="$(arg camera_sharpening_enable)" />
+    <arg name="auto_sharpness" value="$(arg camera_auto_sharpness)" />
+    <arg name="saturation_enable" value="$(arg camera_saturation_enable)" />
   </include>
 
   <!-- Shift -> indexed stack -> per-frame filter -> timestamp-matched colorize. -->
