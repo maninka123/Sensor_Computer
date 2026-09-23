@@ -63,6 +63,41 @@ rosbag play --clock <bag-file>
 
 See [Testing without sensor hardware](docs/TESTING.md) for bag details.
 
+### Start automatically at boot
+
+- Waits only for this PC's fixed `eth0` addresses.
+- Does not wait for the remote server.
+- Starts the complete live-sensor pipeline and ROSBridge.
+- Restarts after a process failure.
+
+Install and enable it for the next boot:
+
+```bash
+cd ~/catkin_ws_actual
+./scripts/install_boot_service.sh
+```
+
+After reboot:
+
+```bash
+systemctl status node-pc.service
+./monitor_pipeline.sh
+```
+
+Stop now but keep boot startup enabled:
+
+```bash
+sudo systemctl stop node-pc.service
+```
+
+Stop and disable boot startup:
+
+```bash
+sudo systemctl disable --now node-pc.service
+```
+
+Do not run `./run_hardware.sh` while the service is active.
+
 ## Output and remote connection
 
 The final output is `sensor_msgs/PointCloud2` on:
