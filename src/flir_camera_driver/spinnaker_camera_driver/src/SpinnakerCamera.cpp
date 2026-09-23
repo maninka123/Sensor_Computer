@@ -147,6 +147,12 @@ void SpinnakerCamera::connect()
 {
   if (!pCam_)
   {
+    // Re-enumerate instead of retaining handles from a failed acquisition.
+    // GigE cameras can appear once per host interface; appending every scan
+    // caused the reconnect loop to accumulate stale duplicate handles.
+    camList_.Clear();
+    camList_ = system_->GetCameras();
+
     // If we have a specific camera to connect to (specified by a serial number)
     if (serial_ != 0)
     {
@@ -297,8 +303,9 @@ void SpinnakerCamera::disconnect()
       camList_.RemoveBySerial(std::to_string(serial_));
     }
     captureRunning_ = false;
-    Spinnaker::CameraList temp_list = system_->GetCameras();
-    camList_.Append(temp_list);
+    // The next connect() performs a fresh enumeration. Do not append here:
+    // that grows the list on every recovery attempt and retains stale handles.
+    camList_.Clear();
   }
   catch (const Spinnaker::Exception& e)
   {
@@ -373,6 +380,11 @@ void SpinnakerCamera::configureGigETransport(uint64_t packet_size, uint64_t pack
   set_integer(*node_map_, "GevSCPD", packet_delay);
 
   Spinnaker::GenApi::INodeMap& stream_map = pCam_->GetTLStreamNodeMap();
+  // Spinnaker on Linux must receive GigE Vision data through the native socket
+  // transport. The SDK's official Acquisition example selects this explicitly;
+  // relying on the default can leave GVCP control working while no GVSP image
+  // packets are delivered.
+  set_enumeration(stream_map, "StreamMode", "Socket");
   set_enumeration(stream_map, "StreamBufferCountMode", "Manual");
   set_integer(stream_map, "StreamBufferCountManual", buffer_count);
   set_enumeration(stream_map, "StreamBufferHandlingMode", "NewestOnly");
