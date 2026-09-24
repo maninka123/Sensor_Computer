@@ -137,6 +137,76 @@ class RosGraph:
                 logging.debug("Could not verify native node %s: %s", node, exc)
         return clients
 
+    def remote_ros_nodes(self, state=None):
+        """Describe remote ROS nodes without treating bridge relays as handoffs.
+
+        A remote process can be a native ROS node while still receiving its
+        payload from rosbridge.  Such a node is useful status information, but
+        it must not trigger bridge shutdown because the bridge is still in the
+        data path.
+        """
+        if state is None:
+            state = self.system_state()
+
+        try:
+            bridge_uri = self.node_uri(BRIDGE_NODE)
+        except (OSError, RuntimeError, xmlrpc.client.Error):
+            bridge_uri = None
+
+        subscriptions = {}
+        for topic, nodes in state[1]:
+            for node in nodes:
+                if node != BRIDGE_NODE:
+                    subscriptions.setdefault(node, set()).add(topic)
+
+        nodes = []
+        for node, topics in sorted(subscriptions.items()):
+            try:
+                uri = self.node_uri(node)
+                if not is_remote_uri(uri, self.local):
+                    continue
+                node_rpc = xmlrpc.client.ServerProxy(uri, allow_none=True)
+                bus_info = rpc_value(node_rpc.getBusInfo(CALLER_ID), "getBusInfo")
+                inbound = [
+                    entry
+                    for entry in bus_info
+                    if len(entry) >= 6
+                    and entry[2] == "i"
+                    and str(entry[3]).upper() == "TCPROS"
+                    and bool(entry[5])
+                ]
+                bridge_topics = sorted(
+                    {entry[4] for entry in inbound if bridge_uri and entry[1] == bridge_uri}
+                )
+                direct_topics = sorted(
+                    {
+                        entry[4]
+                        for entry in inbound
+                        if not bridge_uri or entry[1] != bridge_uri
+                    }
+                )
+                if bridge_topics and direct_topics:
+                    path = "mixed"
+                elif bridge_topics:
+                    path = "rosbridge_relay"
+                elif direct_topics:
+                    path = "tcpros_direct"
+                else:
+                    path = "registered"
+                nodes.append(
+                    {
+                        "node": node,
+                        "host": remote_host(uri),
+                        "subscriptions": sorted(topics),
+                        "bridge_relay_topics": bridge_topics,
+                        "direct_topics": direct_topics,
+                        "path": path,
+                    }
+                )
+            except (OSError, RuntimeError, xmlrpc.client.Error) as exc:
+                logging.debug("Could not inspect remote ROS node %s: %s", node, exc)
+        return nodes
+
 
 class ServiceManager:
     def __init__(self, dry_run=False):
@@ -196,9 +266,11 @@ class Supervisor:
         error = None
         state = None
         clients = []
+        remote_nodes = []
         try:
             state = self.graph.system_state()
             clients = self.graph.direct_native_clients(state)
+            remote_nodes = self.graph.remote_ros_nodes(state)
         except (OSError, RuntimeError, xmlrpc.client.Error) as exc:
             error = "ROS master unavailable: %s" % exc
             logging.warning(error)
@@ -226,6 +298,7 @@ class Supervisor:
             "active_transport": transport_label(bridge_running, clients),
             "bridge_running": bridge_running,
             "native_clients": clients,
+            "remote_ros_nodes": remote_nodes,
             "native_stable_for_seconds": (
                 round(now - self.native_since, 1) if self.native_since is not None else 0.0
             ),

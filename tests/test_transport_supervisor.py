@@ -21,6 +21,9 @@ class FakeGraph:
     def direct_native_clients(self, _state):
         return list(self.clients)
 
+    def remote_ros_nodes(self, _state):
+        return []
+
 
 class FakeServices:
     def __init__(self, bridge_running):

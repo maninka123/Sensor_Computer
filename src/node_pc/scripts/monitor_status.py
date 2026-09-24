@@ -257,8 +257,13 @@ class TopicMonitor:
         if self.transport_status:
             updated = float(self.transport_status.get("updated_unix", 0.0))
             age = max(0.0, time.time() - updated) if updated > 0.0 else float("inf")
-            age_text = "unknown" if age == float("inf") else f"{age:.1f} s"
-            lines.append(f"  Status age:           {age_text}")
+            if age <= 10.0:
+                heartbeat = self._color("HEALTHY", True)
+            elif age == float("inf"):
+                heartbeat = self._yellow("UNKNOWN")
+            else:
+                heartbeat = self._yellow(f"STALE ({age:.1f} s)")
+            lines.append(f"  Supervisor heartbeat: {heartbeat}")
             clients = self.transport_status.get("native_clients") or []
             if clients:
                 for client in clients:
@@ -269,7 +274,24 @@ class TopicMonitor:
                     )
                     lines.append(f"  Direct topics:        {topics or 'unknown'}")
             else:
-                lines.append("  Native client:        none detected")
+                lines.append("  Direct payload client: none detected")
+            for node in self.transport_status.get("remote_ros_nodes") or []:
+                name = node.get("node", "unknown")
+                host = node.get("host", "unknown")
+                path = node.get("path")
+                lines.append(f"  Remote ROS node:      {name} @ {host}")
+                if path == "rosbridge_relay":
+                    topics = ", ".join(node.get("bridge_relay_topics") or [])
+                    lines.append(
+                        f"  Data path:            ROSBridge relay ({topics or 'unknown'})"
+                    )
+                elif path == "tcpros_direct":
+                    topics = ", ".join(node.get("direct_topics") or [])
+                    lines.append(f"  Data path:            direct TCPROS ({topics or 'unknown'})")
+                elif path == "mixed":
+                    lines.append("  Data path:            mixed TCPROS + ROSBridge relay")
+                else:
+                    lines.append("  Data path:            registered; no TCPROS payload yet")
             error = self.transport_status.get("error")
             if error:
                 lines.append(f"  Supervisor warning:   {self._yellow(error)}")
