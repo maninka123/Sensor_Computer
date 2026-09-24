@@ -164,6 +164,9 @@ catkin_install_python(PROGRAMS
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+install(FILES scripts/enclosure_correction.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
+
 # Runtime-only SBC inference assets. Training checkpoints and reports are not
 # installed on deployed sensing units.
 install(FILES

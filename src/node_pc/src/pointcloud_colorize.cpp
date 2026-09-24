@@ -26,6 +26,32 @@
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core.hpp>
 
+namespace
+{
+cv::Mat correctEnclosureBgr(const cv::Mat& image)
+{
+  std::vector<cv::Mat> channels;
+  cv::split(image, channels);
+  cv::Mat blue, red, red_excess, yellow_excess, warm, brightest, brightness, shift;
+  cv::add(channels[0], cv::Scalar(2), blue);
+  cv::subtract(channels[2], cv::Scalar(2), red);
+  cv::subtract(red, channels[1] + cv::Scalar(6), red_excess);
+  cv::subtract(channels[1], blue + cv::Scalar(2), yellow_excess);
+  cv::min(red_excess, yellow_excess, warm);
+  cv::min(warm, 24, warm);
+  cv::max(blue, channels[1], brightest);
+  cv::max(brightest, red, brightest);
+  cv::subtract(brightest, cv::Scalar(100), brightness);
+  cv::min(brightness, 80, brightness);
+  cv::multiply(warm, brightness, shift, 0.3 / 80.0);
+  cv::add(blue, shift, channels[0]);
+  cv::subtract(red, shift, channels[2]);
+  cv::Mat output;
+  cv::merge(channels, output);
+  return output;
+}
+}  // namespace
+
 class PointCloudColorizer
 {
 public:
@@ -35,6 +61,10 @@ public:
     pnh.param<std::string>("output_topic", output_topic_, "/merged_colored_cloud");
     pnh.param<std::string>("image_topic", image_topic_, "/camera/image_raw");
     pnh.param<std::string>("enhanced_image_topic", enhanced_image_topic_, "/camera/image_enhanced");
+    pnh.param<bool>("enclosure_correction", enclosure_correction_, false);
+    pnh.param<std::string>("enclosure_correction_topic", enclosure_correction_topic_, "/enclosure_correction");
+    pnh.param<std::string>("enclosure_correction_status_topic", enclosure_correction_status_topic_, "/enclosure_correction/status");
+    pnh.param<std::string>("enclosure_corrected_image_topic", enclosure_corrected_image_topic_, "/camera/image_enclosure_corrected");
     pnh.param<int>("image_enchantment", image_enhancement_, 0);  // Backward-compatible parameter name.
     pnh.param<std::string>("image_enchantment_topic", image_enhancement_topic_, std::string(""));
     pnh.param<double>("sync_tolerance", sync_tolerance_, 0.05);
@@ -65,6 +95,9 @@ public:
     input_frames_pub_ = nh.advertise<std_msgs::UInt32>(input_frames_topic_, 1, true);
     point_count_pub_ = nh.advertise<std_msgs::UInt32>(point_count_topic_, 1, true);
     dropped_batches_pub_ = nh.advertise<std_msgs::UInt32>(dropped_batches_topic_, 1, true);
+    enclosure_status_pub_ = nh.advertise<std_msgs::Bool>(enclosure_correction_status_topic_, 1, true);
+    enclosure_image_pub_ = nh.advertise<sensor_msgs::Image>(enclosure_corrected_image_topic_, 1);
+    enclosure_sub_ = nh.subscribe(enclosure_correction_topic_, 1, &PointCloudColorizer::enclosureCallback, this);
     if (!image_enhancement_topic_.empty())
     {
       enhancement_sub_ = nh.subscribe(image_enhancement_topic_, 1, &PointCloudColorizer::enhancementCallback, this);
@@ -78,6 +111,7 @@ public:
                     << " timeout=" << partial_batch_timeout_
                     << " s mode=" << (enhancementEnabled() ? "enhanced" : "raw"));
     publishStatus(0, 0, 0);
+    publishEnclosureStatus();
   }
 
 private:
@@ -116,6 +150,28 @@ private:
   bool enhancementEnabled() const
   {
     return image_enhancement_ != 0;
+  }
+
+  void publishEnclosureStatus()
+  {
+    std_msgs::Bool status;
+    status.data = enclosure_correction_;
+    enclosure_status_pub_.publish(status);
+  }
+
+  void enclosureCallback(const std_msgs::BoolConstPtr& msg)
+  {
+    if (enclosure_correction_ == msg->data)
+    {
+      publishEnclosureStatus();
+      return;
+    }
+    enclosure_correction_ = msg->data;
+    pending_clouds_.clear();
+    enhanced_images_.clear();
+    publishEnclosureStatus();
+    ROS_INFO_STREAM("Enclosure colour correction " << (enclosure_correction_ ? "ON" : "OFF")
+                    << "; pending fusion data cleared to prevent mixed output");
   }
 
   void loadCameraParams(ros::NodeHandle& pnh)
@@ -325,6 +381,24 @@ private:
         pending_clouds_.pop_front();
         force_front = false;
         continue;
+      }
+
+      if (enclosure_correction_ && !batch_enhanced)
+      {
+        for (auto& item : images)
+        {
+          cv_bridge::CvImagePtr corrected(new cv_bridge::CvImage(*item.second));
+          corrected->image = correctEnclosureBgr(item.second->image);
+          item.second = corrected;
+        }
+      }
+
+      if (enclosure_correction_ && enclosure_image_pub_.getNumSubscribers() > 0)
+      {
+        for (const auto& item : images)
+        {
+          enclosure_image_pub_.publish(item.second->toImageMsg());
+        }
       }
 
       std::vector<SourceGroup> matched_groups;
@@ -695,12 +769,16 @@ private:
   std::string output_topic_;
   std::string image_topic_;
   std::string enhanced_image_topic_;
+  std::string enclosure_correction_topic_;
+  std::string enclosure_correction_status_topic_;
+  std::string enclosure_corrected_image_topic_;
   std::string image_enhancement_topic_;
   std::string matched_frames_topic_;
   std::string input_frames_topic_;
   std::string point_count_topic_;
   std::string dropped_batches_topic_;
   int image_enhancement_{0};
+  bool enclosure_correction_{false};
   double sync_tolerance_{0.05};
   int queue_size_{10};
   int image_history_size_{100};
@@ -728,7 +806,10 @@ private:
   ros::Subscriber raw_image_sub_;
   ros::Subscriber enhanced_image_sub_;
   ros::Subscriber enhancement_sub_;
+  ros::Subscriber enclosure_sub_;
   ros::Publisher pub_;
+  ros::Publisher enclosure_status_pub_;
+  ros::Publisher enclosure_image_pub_;
   ros::Publisher matched_frames_pub_;
   ros::Publisher input_frames_pub_;
   ros::Publisher point_count_pub_;

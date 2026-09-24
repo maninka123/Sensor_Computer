@@ -49,7 +49,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSI
   <arg name="auto_exposure_time_upper_limit" default="20000" />
   <arg name="auto_gain"                      default="Continuous" />
   <arg name="gamma_enable"                   default="True" />
-  <arg name="gamma"                          default="0.8" />
+  <arg name="gamma"                          default="0.75" />
   <arg name="sharpening_enable"              default="True" />
   <arg name="auto_sharpness"                 default="True" />
   <arg name="saturation_enable"               default="False" />

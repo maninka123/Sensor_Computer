@@ -10,6 +10,8 @@ import time
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 SBC_DIR = SCRIPT_DIR / "SBC inference"
 if not SBC_DIR.is_dir():
     import rospkg
@@ -43,6 +45,7 @@ import torch
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool, Float32, UInt64
+from enclosure_correction import correct_bgr
 
 try:
     from runtime import (
@@ -76,11 +79,15 @@ class ImageEnhancerNode:
         p = rospy.get_param
         self.user_enabled = bool(p("~enabled", False))
         self.enabled = self.user_enabled
+        self.enclosure_correction_enabled = False
         self.thermal_blocked = False
         self.input_topic = p("~input_topic", "/camera/image_raw")
         self.output_topic = p("~output_topic", "/camera/image_enhanced")
         self.enhancement_topic = p("~enhancement_topic", "/image_enhancement")
         self.status_topic = p("~status_topic", self.enhancement_topic + "/status")
+        self.enclosure_correction_status_topic = p(
+            "~enclosure_correction_status_topic", "/enclosure_correction/status"
+        )
         self.temperature_topic = p("~temperature_topic", "/temperature")
         self.temperature_path = Path(str(p(
             "~temperature_path", "/sys/class/thermal/thermal_zone0/temp"
@@ -135,6 +142,12 @@ class ImageEnhancerNode:
         )
         self.toggle_sub = rospy.Subscriber(
             self.enhancement_topic, Bool, self.toggle_cb, queue_size=1
+        )
+        self.correction_sub = rospy.Subscriber(
+            self.enclosure_correction_status_topic,
+            Bool,
+            self.correction_cb,
+            queue_size=1,
         )
         self._sample_temperature()
         self.status_pub.publish(Bool(data=self.enabled))
@@ -191,6 +204,21 @@ class ImageEnhancerNode:
             "ON" if enabled else "OFF",
             " (thermal protection active)" if requested and not enabled else "",
         )
+
+    def correction_cb(self, msg):
+        with self.condition:
+            requested = bool(msg.data)
+            if requested == self.enclosure_correction_enabled:
+                return
+            self.enclosure_correction_enabled = requested
+            self.generation += 1
+            self.last_scheduled_time = 0.0
+            if self.pending is not None:
+                self.pending = None
+                self.dropped += 1
+            self.condition.notify_all()
+        self._publish_counters()
+        rospy.loginfo("Enclosure colour correction %s before enhancement", "ON" if requested else "OFF")
 
     def _update_effective_state_locked(self):
         effective = self.user_enabled and not self.thermal_blocked
@@ -292,11 +320,14 @@ class ImageEnhancerNode:
                 if self.shutdown_requested or rospy.is_shutdown():
                     return
                 msg, generation = self.pending
+                correction_enabled = self.enclosure_correction_enabled
                 self.pending = None
 
             started = time.monotonic()
             try:
                 bgr = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+                if correction_enabled:
+                    bgr = correct_bgr(bgr)
                 tensor = bgr_array_to_tensor(bgr)
                 with torch.inference_mode():
                     if not self.warmed_up:

@@ -66,6 +66,7 @@ class TopicMonitor:
 
         self.tracks = {}
         self.enhancement_flag = None
+        self.enclosure_correction_flag = None
         self.temperature = None
         self.voxel_enabled = None
         self.voxel_leaf_size = None
@@ -126,6 +127,9 @@ class TopicMonitor:
                     )
 
         rospy.Subscriber(self.enhancement_topic, Bool, self._enh_cb, queue_size=5)
+        rospy.Subscriber(
+            "/enclosure_correction/status", Bool, self._enclosure_cb, queue_size=1
+        )
         rospy.Subscriber("/temperature", Float32, self._temperature_cb, queue_size=1)
         rospy.Subscriber("/voxel_downsampling/status", Bool, self._voxel_cb, queue_size=1)
         rospy.Subscriber("/voxel_leaf_size/status", Float64, self._leaf_size_cb, queue_size=1)
@@ -156,6 +160,9 @@ class TopicMonitor:
         
     def _enh_cb(self, msg):
         self.enhancement_flag = bool(msg.data)
+
+    def _enclosure_cb(self, msg):
+        self.enclosure_correction_flag = bool(msg.data)
 
     def _temperature_cb(self, msg):
         self.temperature = float(msg.data)
@@ -340,6 +347,12 @@ class TopicMonitor:
             enh_bits.append(f"param={bool(self.enhancement_param)}")
         enh_status = " / ".join(enh_bits) if enh_bits else "unknown"
         lines.append(f"  Status: {enh_status}")
+        enclosure_status = (
+            "unknown"
+            if self.enclosure_correction_flag is None
+            else ("ON" if self.enclosure_correction_flag else "OFF")
+        )
+        lines.append(f"  Enclosure correction: {enclosure_status}")
 
         # Temperature and processing configuration/status.
         lines.append("\n== System and Output ==")

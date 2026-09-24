@@ -138,6 +138,16 @@ subscriber restores it. Rerun `./scripts/install_boot_service.sh` after editing
 transport values in `network.env`; the privileged supervisor intentionally
 uses a root-owned environment snapshot.
 
+Enclosure colour correction is off by default on every boot. The server can
+publish `std_msgs/Bool` to `/enclosure_correction` (`true` to enable, `false`
+to disable), then read the latched effective state from
+`/enclosure_correction/status`. When enabled, matched images are also
+published on `/camera/image_enclosure_corrected` for visual inspection. The
+camera's raw topic is never overwritten. The correction softens the warm
+colour of bright dome reflections but cannot reconstruct obscured detail.
+It runs after image selection in raw fusion mode and before optional neural
+enhancement in enhanced mode; both paths preserve the original capture stamp.
+
 Camera intrinsics, LiDAR-to-camera extrinsics, capture correction, and rosbag
 clock offset live in `src/node_pc/config/pipeline.yaml`. Recalibrate the camera
 and extrinsics if either sensor or its mounting moves.

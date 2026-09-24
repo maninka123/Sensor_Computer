@@ -72,6 +72,7 @@
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>rosgraph</exec_depend>
   <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-opencv</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

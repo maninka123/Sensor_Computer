@@ -18,7 +18,7 @@
   <arg name="camera_auto_exposure_limit" default="$(optenv FLIR_AUTO_EXPOSURE_LIMIT_US 20000)" />
   <arg name="camera_auto_gain" default="$(optenv FLIR_AUTO_GAIN Continuous)" />
   <arg name="camera_gamma_enable" default="$(optenv FLIR_GAMMA_ENABLE True)" />
-  <arg name="camera_gamma" default="$(optenv FLIR_GAMMA 0.8)" />
+  <arg name="camera_gamma" default="$(optenv FLIR_GAMMA 0.75)" />
   <arg name="camera_sharpening_enable" default="$(optenv FLIR_SHARPENING_ENABLE True)" />
   <arg name="camera_auto_sharpness" default="$(optenv FLIR_AUTO_SHARPNESS True)" />
   <arg name="camera_saturation_enable" default="$(optenv FLIR_SATURATION_ENABLE False)" />
