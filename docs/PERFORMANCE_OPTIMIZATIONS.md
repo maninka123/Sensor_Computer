@@ -46,7 +46,7 @@ The boot deployment separates transport from sensor processing:
   subscriptions and controls the bridge independently.
 
 ROSBridge starts at boot. A remote native ROS node subscribed directly to
-`/merged_colored_cloud` or `/camera/image_raw` for 15 seconds causes ROSBridge
+`/merged_colored_cloud` from the point-cloud colorizer for 15 seconds causes ROSBridge
 and the web TF republisher to stop. If every qualifying native client is absent
 for 45 seconds, ROSBridge starts again. The sensor pipeline is not restarted
 during either transition.

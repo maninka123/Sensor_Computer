@@ -112,6 +112,18 @@ private:
 
   void cloudCallback(const sensor_msgs::PointCloud2ConstPtr& msg)
   {
+    const std::size_t row_bytes = static_cast<std::size_t>(msg->width) * msg->point_step;
+    if (msg->width == 0 || msg->height == 0 || msg->point_step == 0 ||
+        msg->row_step < row_bytes || msg->data.size() < row_bytes ||
+        (msg->height > 1 && static_cast<std::size_t>(msg->height - 1) >
+            (msg->data.size() - row_bytes) / msg->row_step))
+    {
+      ROS_ERROR_STREAM_THROTTLE(2.0,
+          "Dropping malformed/empty LiDAR cloud: width=" << msg->width
+          << " height=" << msg->height << " point_step=" << msg->point_step
+          << " row_step=" << msg->row_step << " data=" << msg->data.size());
+      return;
+    }
     if (hasReservedField(*msg))
     {
       ROS_ERROR_STREAM_THROTTLE(2.0, "Input cloud already contains reserved source-frame fields; dropping it");
@@ -120,6 +132,11 @@ private:
     if (!buffer_.empty() && !compatibleLayout(*buffer_.front(), *msg))
     {
       ROS_ERROR_STREAM("PointCloud2 layout changed while accumulating; resetting the current batch");
+      buffer_.clear();
+    }
+    if (!buffer_.empty() && msg->header.stamp < buffer_.back()->header.stamp)
+    {
+      ROS_WARN_STREAM("LiDAR timestamp jumped backward; clearing accumulated fusion frames");
       buffer_.clear();
     }
 
@@ -172,9 +189,9 @@ private:
     {
       total_points += pointCount(*cloud);
     }
-    if (total_points > std::numeric_limits<std::uint32_t>::max())
+    if (total_points > std::numeric_limits<std::uint32_t>::max() / indexed_step)
     {
-      ROS_ERROR_STREAM("Accumulated cloud is too large for PointCloud2 width");
+      ROS_ERROR_STREAM("Accumulated cloud is too large for PointCloud2 row_step");
       return false;
     }
 

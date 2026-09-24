@@ -102,6 +102,8 @@ public:
     {
       enhancement_sub_ = nh.subscribe(image_enhancement_topic_, 1, &PointCloudColorizer::enhancementCallback, this);
     }
+    pending_timer_ = nh.createWallTimer(
+        ros::WallDuration(0.05), &PointCloudColorizer::pendingTimerCallback, this);
 
     ROS_INFO_STREAM("Frame-aware colorizer: cloud=" << input_topic_
                     << " raw=" << image_topic_ << " enhanced=" << enhanced_image_topic_
@@ -324,6 +326,14 @@ private:
     }
   }
 
+  void pendingTimerCallback(const ros::WallTimerEvent&)
+  {
+    if (!pending_clouds_.empty())
+    {
+      processPending();
+    }
+  }
+
   void processPending(bool force_front = false)
   {
     while (!pending_clouds_.empty())
@@ -393,14 +403,6 @@ private:
         }
       }
 
-      if (enclosure_correction_ && enclosure_image_pub_.getNumSubscribers() > 0)
-      {
-        for (const auto& item : images)
-        {
-          enclosure_image_pub_.publish(item.second->toImageMsg());
-        }
-      }
-
       std::vector<SourceGroup> matched_groups;
       matched_groups.reserve(images.size());
       for (const auto& group : groups)
@@ -416,6 +418,15 @@ private:
       {
         pub_.publish(output);
         publishStatus(groups.size(), matched_groups.size(), output.width * output.height);
+        if (enclosure_correction_ && enclosure_image_pub_.getNumSubscribers() > 0)
+        {
+          // Keep preview stamps ordered and publish only frames that actually
+          // contributed to the fused output.
+          for (const auto& group : matched_groups)
+          {
+            enclosure_image_pub_.publish(images.at(group.index)->toImageMsg());
+          }
+        }
       }
       pending_clouds_.pop_front();
       force_front = false;
@@ -807,6 +818,7 @@ private:
   ros::Subscriber enhanced_image_sub_;
   ros::Subscriber enhancement_sub_;
   ros::Subscriber enclosure_sub_;
+  ros::WallTimer pending_timer_;
   ros::Publisher pub_;
   ros::Publisher enclosure_status_pub_;
   ros::Publisher enclosure_image_pub_;

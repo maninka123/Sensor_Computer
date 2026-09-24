@@ -18,6 +18,20 @@ import xmlrpc.client
 BRIDGE_SERVICE = "node-pc-rosbridge.service"
 BRIDGE_NODE = "/rosbridge_websocket"
 CALLER_ID = "/node_pc_transport_supervisor"
+RPC_TIMEOUT_SECONDS = 2.0
+
+
+class TimeoutTransport(xmlrpc.client.Transport):
+    def make_connection(self, host):
+        connection = super().make_connection(host)
+        connection.timeout = RPC_TIMEOUT_SECONDS
+        return connection
+
+
+def ros_rpc(uri):
+    return xmlrpc.client.ServerProxy(
+        uri, allow_none=True, transport=TimeoutTransport()
+    )
 
 
 def env_float(name, default):
@@ -32,7 +46,7 @@ def env_float(name, default):
 
 def configured_topics():
     value = os.environ.get(
-        "TRANSPORT_NATIVE_TOPICS", "/merged_colored_cloud,/camera/image_raw"
+        "TRANSPORT_NATIVE_TOPICS", "/merged_colored_cloud"
     )
     topics = tuple(item.strip() for item in value.split(",") if item.strip())
     if not topics:
@@ -58,9 +72,10 @@ def host_addresses(host):
 
 def local_addresses():
     addresses = {"127.0.0.1", "::1"}
-    configured = os.environ.get("ROS_IP", "").strip()
-    if configured:
-        addresses.add(configured)
+    for name in ("ROS_IP", "LIVOX_HOST_IP"):
+        configured = os.environ.get(name, "").strip()
+        if configured:
+            addresses.add(configured)
     addresses.update(host_addresses(socket.gethostname()))
     addresses.update(host_addresses("localhost"))
     return addresses
@@ -80,9 +95,15 @@ def is_remote_uri(node_uri, local):
 
 class RosGraph:
     def __init__(self, master_uri, topics):
-        self.master = xmlrpc.client.ServerProxy(master_uri, allow_none=True)
+        self.master = ros_rpc(master_uri)
         self.topics = set(topics)
         self.local = local_addresses()
+        # This supervisor runs beside the device-hosted master. Treat its
+        # advertised address as local even in an interactive shell where
+        # network.env was sourced without exporting ROS_IP.
+        master_host = remote_host(master_uri)
+        if master_host:
+            self.local.update(host_addresses(master_host) or {master_host})
 
     def system_state(self):
         return rpc_value(self.master.getSystemState(CALLER_ID), "getSystemState")
@@ -107,6 +128,22 @@ class RosGraph:
             for node in nodes:
                 if node != BRIDGE_NODE:
                     subscribed_topics.setdefault(node, set()).add(topic)
+        if not subscribed_topics:
+            return []
+
+        publisher_uris = {}
+        for topic, publishers in state[0]:
+            if topic not in self.topics:
+                continue
+            uris = set()
+            for publisher in publishers:
+                if publisher == BRIDGE_NODE:
+                    continue
+                try:
+                    uris.add(self.node_uri(publisher))
+                except (OSError, RuntimeError, xmlrpc.client.Error) as exc:
+                    logging.debug("Could not verify publisher %s: %s", publisher, exc)
+            publisher_uris[topic] = uris
 
         clients = []
         for node, topics in sorted(subscribed_topics.items()):
@@ -114,7 +151,7 @@ class RosGraph:
                 uri = self.node_uri(node)
                 if not is_remote_uri(uri, self.local):
                     continue
-                node_rpc = xmlrpc.client.ServerProxy(uri, allow_none=True)
+                node_rpc = ros_rpc(uri)
                 bus_info = rpc_value(node_rpc.getBusInfo(CALLER_ID), "getBusInfo")
                 confirmed = {
                     entry[4]
@@ -124,6 +161,7 @@ class RosGraph:
                     and str(entry[3]).upper() == "TCPROS"
                     and bool(entry[5])
                     and entry[4] in topics
+                    and entry[1] in publisher_uris.get(entry[4], set())
                 }
                 if confirmed:
                     clients.append(
@@ -165,7 +203,7 @@ class RosGraph:
                 uri = self.node_uri(node)
                 if not is_remote_uri(uri, self.local):
                     continue
-                node_rpc = xmlrpc.client.ServerProxy(uri, allow_none=True)
+                node_rpc = ros_rpc(uri)
                 bus_info = rpc_value(node_rpc.getBusInfo(CALLER_ID), "getBusInfo")
                 inbound = [
                     entry
@@ -214,7 +252,9 @@ class ServiceManager:
 
     def bridge_running(self):
         return subprocess.run(
-            ["systemctl", "is-active", "--quiet", BRIDGE_SERVICE], check=False
+            ["systemctl", "is-active", "--quiet", BRIDGE_SERVICE],
+            check=False,
+            timeout=3,
         ).returncode == 0
 
     def set_bridge(self, running):
@@ -222,7 +262,7 @@ class ServiceManager:
         logging.info("%s %s", action, BRIDGE_SERVICE)
         if self.dry_run:
             return
-        subprocess.run(["systemctl", action, BRIDGE_SERVICE], check=True)
+        subprocess.run(["systemctl", action, BRIDGE_SERVICE], check=True, timeout=20)
 
 
 def atomic_status_write(path, payload):
@@ -275,23 +315,41 @@ class Supervisor:
             error = "ROS master unavailable: %s" % exc
             logging.warning(error)
 
-        bridge_running = self.services.bridge_running()
+        try:
+            bridge_running = self.services.bridge_running()
+        except subprocess.TimeoutExpired as exc:
+            bridge_running = False
+            error = "Could not query ROSBridge service: %s" % exc
+            logging.warning(error)
         if error is None and clients:
             self.native_lost_since = None
             if self.native_since is None or clients != self.last_clients:
                 self.native_since = now
             stable_for = now - self.native_since
             if bridge_running and stable_for >= self.stable_seconds:
-                self.services.set_bridge(False)
-                bridge_running = self.services.bridge_running()
+                try:
+                    self.services.set_bridge(False)
+                    bridge_running = self.services.bridge_running()
+                except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                    error = "Could not stop ROSBridge: %s" % exc
+                    logging.warning(error)
         elif error is None:
             self.native_since = None
-            if self.native_lost_since is None:
-                self.native_lost_since = now
-            lost_for = now - self.native_lost_since
-            if not bridge_running and lost_for >= self.lost_seconds:
-                self.services.set_bridge(True)
-                bridge_running = self.services.bridge_running()
+            if bridge_running:
+                self.native_lost_since = None
+            else:
+                if self.native_lost_since is None:
+                    self.native_lost_since = now
+                lost_for = now - self.native_lost_since
+                if lost_for >= self.lost_seconds:
+                    try:
+                        self.services.set_bridge(True)
+                        bridge_running = self.services.bridge_running()
+                        if bridge_running:
+                            self.native_lost_since = None
+                    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                        error = "Could not start ROSBridge: %s" % exc
+                        logging.warning(error)
 
         self.last_clients = clients
         payload = {

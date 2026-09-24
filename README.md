@@ -147,7 +147,7 @@ ws://10.20.0.21:9090
   `10.30.0.x` server/output addresses in the second-unit table below.
 
 When a remote native ROS node directly subscribes to `/merged_colored_cloud`
-or `/camera/image_raw` for 15 seconds, the device automatically stops
+from the point-cloud colorizer for 15 seconds, the device automatically stops
 ROSBridge and reports `TCPROS (DIRECT NATIVE)` in `./monitor_pipeline.sh`.
 If all qualifying native clients disappear for 45 seconds, ROSBridge returns.
 No user-side transport selector is required.

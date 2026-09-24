@@ -26,7 +26,8 @@ ExecStart=/home/rock/catkin_ws_actual/run_pipeline.sh
 ExecStartPost=/home/rock/catkin_ws_actual/scripts/verify_pipeline_startup.sh 90
 Restart=always
 RestartSec=10
-TimeoutStartSec=120
+# Network wait can use 60s and the sensor data check can use another 90s.
+TimeoutStartSec=200
 TimeoutStopSec=30
 KillSignal=SIGINT
 KillMode=control-group
