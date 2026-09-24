@@ -18,6 +18,9 @@ remote server PC.
 - Timestamp alignment, filtering, merging, and point-cloud colourisation
 - Native ROS 1 TCPROS and ROSBridge output
 
+See [Performance optimizations and measurements](docs/PERFORMANCE_OPTIMIZATIONS.md)
+for CPU, thermal, network, camera-data, and transport benchmark details.
+
 ### Repository structure
 
 - `src/node_pc` — processing, fusion, filtering, colourisation, enhancement
