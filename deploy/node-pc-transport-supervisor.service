@@ -1,0 +1,30 @@
+[Unit]
+Description=Automatic ROSBridge to TCPROS transport supervisor
+Requires=node-pc.service
+Wants=node-pc-rosbridge.service
+After=node-pc.service node-pc-rosbridge.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/
+# Both files are installed root-owned by install_boot_service.sh. Never run a
+# privileged service directly from the user-writable workspace.
+EnvironmentFile=/etc/node-pc/transport.env
+Environment="TRANSPORT_STATUS_FILE=/run/node-pc-transport-status.json"
+ExecStart=/usr/bin/python3 /usr/local/lib/node-pc/transport_supervisor.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/run
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node-pc-transport
+
+[Install]
+WantedBy=multi-user.target

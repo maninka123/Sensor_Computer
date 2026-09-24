@@ -95,7 +95,11 @@ if [[ ! "$PIPELINE_RESTART_DELAY" =~ ^[0-9]+$ ]] || (( PIPELINE_RESTART_DELAY < 
 fi
 
 echo "[pipeline] Network: ROS_IP=${ROS_IP}, ROS_MASTER_URI=${ROS_MASTER_URI}"
-echo "[pipeline] ROSBridge: ws://${ROS_IP}:${ROSBRIDGE_PORT} (bind ${ROSBRIDGE_ADDRESS})"
+if [[ "$ROSBRIDGE_MODE" == true ]]; then
+  echo "[pipeline] ROSBridge: ws://${ROS_IP}:${ROSBRIDGE_PORT} (bind ${ROSBRIDGE_ADDRESS})"
+else
+  echo "[pipeline] ROSBridge: disabled in this launch"
+fi
 echo "[pipeline] Starting full pipeline launch (rosbag=${ROSBAG_MODE}, rosbridge=${ROSBRIDGE_MODE})"
 echo "  - rosbag=false : start the Livox/FLIR drivers and the processing pipeline"
 echo "  - rosbag=true  : skip sensor drivers; raw topics come from rosbag playback"

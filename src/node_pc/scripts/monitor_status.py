@@ -8,6 +8,8 @@ result, not by comparing whichever camera and LiDAR messages arrived last.
 """
 
 import collections
+import json
+from pathlib import Path
 import sys
 import time
 import threading
@@ -72,6 +74,13 @@ class TopicMonitor:
         self.point_count = None
         self.dropped_batches = None
         self.rosbridge_running = None
+        self.transport_status = None
+        self.transport_status_file = Path(
+            rospy.get_param(
+                "~transport_status_file",
+                "/run/node-pc-transport-status.json",
+            )
+        )
         self.last_node_check = 0.0
         self.enhancement_topic = rospy.get_param(
             "~image_enchantment_topic", "/image_enhancement/status"
@@ -196,6 +205,27 @@ class TopicMonitor:
             self.rosbridge_running = "/rosbridge_websocket" in rosnode.get_node_names()
         except Exception:
             self.rosbridge_running = False
+        try:
+            with self.transport_status_file.open("r", encoding="utf-8") as stream:
+                self.transport_status = json.load(stream)
+        except (OSError, ValueError):
+            self.transport_status = None
+
+    def _transport_label(self):
+        if not self.transport_status:
+            return self._yellow("SUPERVISOR STATUS UNAVAILABLE")
+        updated = float(self.transport_status.get("updated_unix", 0.0))
+        if updated <= 0.0 or time.time() - updated > 10.0:
+            return self._yellow("SUPERVISOR STATUS STALE")
+        active = self.transport_status.get("active_transport")
+        labels = {
+            "rosbridge": ("ROSBRIDGE (WEBSOCKET FALLBACK)", True),
+            "tcpros": ("TCPROS (DIRECT NATIVE)", True),
+            "handoff": ("HANDOFF: TCPROS + ROSBRIDGE", True),
+            "fallback_wait": ("NO CLIENT - FALLBACK PENDING", False),
+        }
+        text, ok = labels.get(active, ("UNKNOWN", False))
+        return self._color(text, ok) if ok else self._yellow(text)
 
     def _on_timer(self, _event):
         self._check_rosbridge()
@@ -221,6 +251,28 @@ class TopicMonitor:
         lines.append(
             f"  ROSBridge:  {self._color('RUNNING', True) if self.rosbridge_running else self._color('NOT FOUND', False)}"
         )
+
+        lines.append("\n== Client Transport ==")
+        lines.append(f"  Active:               {self._transport_label()}")
+        if self.transport_status:
+            updated = float(self.transport_status.get("updated_unix", 0.0))
+            age = max(0.0, time.time() - updated) if updated > 0.0 else float("inf")
+            age_text = "unknown" if age == float("inf") else f"{age:.1f} s"
+            lines.append(f"  Status age:           {age_text}")
+            clients = self.transport_status.get("native_clients") or []
+            if clients:
+                for client in clients:
+                    topics = ", ".join(client.get("topics") or [])
+                    lines.append(
+                        "  Native client:        %s @ %s"
+                        % (client.get("node", "unknown"), client.get("host", "unknown"))
+                    )
+                    lines.append(f"  Direct topics:        {topics or 'unknown'}")
+            else:
+                lines.append("  Native client:        none detected")
+            error = self.transport_status.get("error")
+            if error:
+                lines.append(f"  Supervisor warning:   {self._yellow(error)}")
         
         for title, items in self.sections:
             lines.append(f"\n== {title} ==")

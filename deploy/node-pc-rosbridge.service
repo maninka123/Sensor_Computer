@@ -1,0 +1,26 @@
+[Unit]
+Description=ROSBridge fallback transport for the node-pc pipeline
+Requires=node-pc.service
+After=node-pc.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=rock
+WorkingDirectory=/home/rock/catkin_ws_actual
+EnvironmentFile=/home/rock/catkin_ws_actual/src/node_pc/config/network.env
+Environment="NODE_PC_NETWORK_CONFIG=/home/rock/catkin_ws_actual/src/node_pc/config/network.env"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=/home/rock/catkin_ws_actual/run_rosbridge.sh
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=20
+KillSignal=SIGINT
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=node-pc-rosbridge
+
+[Install]
+WantedBy=multi-user.target

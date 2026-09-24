@@ -67,7 +67,9 @@ See [Testing without sensor hardware](docs/TESTING.md) for bag details.
 
 - Waits only for this PC's fixed `eth0` addresses.
 - Does not wait for the remote server.
-- Starts the complete live-sensor pipeline and ROSBridge.
+- Starts the live-sensor pipeline and an independent ROSBridge fallback.
+- Automatically prefers a stable remote native TCPROS subscriber, stops the
+  WebSocket bridge to save CPU, and restores it after sustained client loss.
 - Requires live camera, LiDAR, and colourised-cloud messages before systemd
   declares startup successful.
 - Restarts indefinitely after a failed health check or essential process exit.
@@ -82,7 +84,8 @@ cd ~/catkin_ws_actual
 After reboot:
 
 ```bash
-systemctl status node-pc.service
+systemctl status node-pc.service node-pc-rosbridge.service \
+  node-pc-transport-supervisor.service
 ./monitor_pipeline.sh
 ```
 
@@ -130,15 +133,21 @@ The final output is `sensor_msgs/PointCloud2` on:
 /merged_colored_cloud
 ```
 
-The remote PC connects to this unit through ROSBridge:
+ROSBridge is available initially at:
 
 ```text
 ws://10.20.0.21:9090
 ```
 
-- This is the current unit's direct/shared-link address.
+- This is the current unit's direct/shared-link address and fallback transport.
 - For separate private rigs that send output to one server, use the
   `10.30.0.x` server/output addresses in the second-unit table below.
+
+When a remote native ROS node directly subscribes to `/merged_colored_cloud`
+or `/camera/image_raw` for 15 seconds, the device automatically stops
+ROSBridge and reports `TCPROS (DIRECT NATIVE)` in `./monitor_pipeline.sh`.
+If all qualifying native clients disappear for 45 seconds, ROSBridge returns.
+No user-side transport selector is required.
 
 For native ROS 1 TCPROS, configure the remote PC (example address
 `10.20.0.10/24`) as follows:

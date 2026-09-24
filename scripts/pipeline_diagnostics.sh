@@ -20,6 +20,17 @@ echo
 echo "--- Service ---"
 systemctl status node-pc.service --no-pager -l 2>&1 | head -n 35
 echo
+echo "--- Transport services ---"
+systemctl status node-pc-rosbridge.service --no-pager -l 2>&1 | head -n 20
+systemctl status node-pc-transport-supervisor.service --no-pager -l 2>&1 | head -n 20
+echo
+echo "--- Active client transport ---"
+if [[ -r "${TRANSPORT_STATUS_FILE:-/run/node-pc-transport-status.json}" ]]; then
+  cat "${TRANSPORT_STATUS_FILE:-/run/node-pc-transport-status.json}"
+else
+  echo "Transport supervisor status is not available."
+fi
+echo
 echo "--- Network addresses ---"
 ip -4 -o address show 2>&1
 echo
@@ -38,8 +49,10 @@ done
 echo
 echo "--- Recent service log ---"
 if sudo -n true 2>/dev/null; then
-  sudo -n journalctl -u node-pc.service -n 100 --no-pager -q
+  sudo -n journalctl -u node-pc.service -u node-pc-rosbridge.service \
+    -u node-pc-transport-supervisor.service -n 100 --no-pager -q
 else
-  journalctl -u node-pc.service -n 100 --no-pager -q 2>&1
-  echo "[diagnostics] If logs are incomplete, run: sudo journalctl -u node-pc.service -n 100"
+  journalctl -u node-pc.service -u node-pc-rosbridge.service \
+    -u node-pc-transport-supervisor.service -n 100 --no-pager -q 2>&1
+  echo "[diagnostics] If logs are incomplete, rerun this command with sudo."
 fi

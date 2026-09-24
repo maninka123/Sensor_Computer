@@ -13,7 +13,10 @@ WorkingDirectory=/home/rock/catkin_ws_actual
 EnvironmentFile=/home/rock/catkin_ws_actual/src/node_pc/config/network.env
 Environment="NODE_PC_NETWORK_CONFIG=/home/rock/catkin_ws_actual/src/node_pc/config/network.env"
 Environment="ROSBAG=false"
-Environment="ROSBRIDGE=true"
+# Web transport is managed independently by node-pc-rosbridge.service so it
+# can stop after a native TCPROS client is established without touching the
+# sensor or processing pipeline.
+Environment="ROSBRIDGE=false"
 Environment="PYTHONUNBUFFERED=1"
 
 # Wait only for this sensor computer's persistent local addresses. The remote

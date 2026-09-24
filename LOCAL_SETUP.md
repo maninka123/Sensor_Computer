@@ -97,8 +97,10 @@ Normal startup defaults to real sensors (`ROSBAG=false`), so it remains simply:
 ./run_pipeline.sh
 ```
 
-Disable the optional WebSocket bridge with `ROSBRIDGE=false` before either
-command. Extra roslaunch overrides can be appended, for example:
+For manual runs, disable the optional embedded WebSocket bridge with
+`ROSBRIDGE=false`. The boot deployment instead uses an independent bridge
+service and an automatic transport supervisor. Extra roslaunch overrides can
+be appended, for example:
 
 ```bash
 ROSBRIDGE=false ./run_hardware.sh camera_frame_rate:=20
@@ -111,11 +113,13 @@ service (these commands require the local sudo password):
 
 ```bash
 cd ~/catkin_ws_actual
-sudo install -m 0644 deploy/node-pc.service /etc/systemd/system/node-pc.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now node-pc.service
-systemctl status node-pc.service
-journalctl -u node-pc.service -f
+./scripts/install_boot_service.sh
+sudo systemctl restart node-pc.service node-pc-rosbridge.service \
+  node-pc-transport-supervisor.service
+systemctl status node-pc.service node-pc-rosbridge.service \
+  node-pc-transport-supervisor.service
+journalctl -u node-pc.service -u node-pc-rosbridge.service \
+  -u node-pc-transport-supervisor.service -f
 ```
 
 Useful checks after startup:
@@ -126,6 +130,13 @@ rostopic hz /livox/lidar
 rostopic hz /merged_colored_cloud
 rosrun node_pc monitor_status.py
 ```
+
+The monitor's `Client Transport` section shows `ROSBRIDGE`, `TCPROS`, the
+short handoff period, or fallback recovery. The server decides automatically:
+a stable remote native subscriber stops ROSBridge, and loss of every native
+subscriber restores it. Rerun `./scripts/install_boot_service.sh` after editing
+transport values in `network.env`; the privileged supervisor intentionally
+uses a root-owned environment snapshot.
 
 Camera intrinsics, LiDAR-to-camera extrinsics, capture correction, and rosbag
 clock offset live in `src/node_pc/config/pipeline.yaml`. Recalibrate the camera
