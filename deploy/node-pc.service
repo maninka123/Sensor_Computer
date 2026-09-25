@@ -24,6 +24,12 @@ Environment="PYTHONUNBUFFERED=1"
 ExecStartPre=/home/rock/catkin_ws_actual/scripts/wait_for_local_network.sh eth0 60
 ExecStart=/home/rock/catkin_ws_actual/run_pipeline.sh
 ExecStartPost=/home/rock/catkin_ws_actual/scripts/verify_pipeline_startup.sh 90
+# Boot-time transport jobs are dropped if the sensor check fails once. Queue
+# them again after every successful retry, without waiting on units ordered
+# After=node-pc.service (which would deadlock this start-post phase).
+# '+' grants only this fixed systemctl command the privileges needed to start
+# units; '-' keeps a transport start failure from tearing down healthy sensors.
+ExecStartPost=-+/usr/bin/systemctl --no-block start node-pc-rosbridge.service node-pc-transport-supervisor.service
 Restart=always
 RestartSec=10
 # Network wait can use 60s and the sensor data check can use another 90s.
