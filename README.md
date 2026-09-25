@@ -20,6 +20,8 @@ remote server PC.
 
 See [Performance optimizations and measurements](docs/PERFORMANCE_OPTIMIZATIONS.md)
 for CPU, thermal, network, camera-data, and transport benchmark details.
+For a reproducible A–D live-hardware comparison on ROCK 5, see the
+[ROCK 5 benchmark and results](benchmarks/rock5/README.md).
 
 ### Repository structure
 

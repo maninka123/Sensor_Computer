@@ -1,0 +1,16 @@
+<launch>
+  <!-- Isolated hardware run using the production launch and binaries. These
+       parameters override pipeline.yaml only in this roslaunch invocation. -->
+  <arg name="stack" default="10" />
+  <arg name="enhance" default="false" />
+  <arg name="minimum" default="3" />
+
+  <include file="$(find node_pc)/launch/pipeline.launch">
+    <arg name="rosbag" value="false" />
+    <arg name="rosbridge" value="false" />
+  </include>
+
+  <param name="/pointcloud_merger/consecutive_count" value="$(arg stack)" type="int" />
+  <param name="/pointcloud_colorizer/min_synchronized_frames" value="$(arg minimum)" type="int" />
+  <param name="/image_enhancer/enabled" value="$(arg enhance)" type="bool" />
+</launch>

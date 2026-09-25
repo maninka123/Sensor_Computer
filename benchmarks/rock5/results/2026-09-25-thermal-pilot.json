@@ -1,0 +1,262 @@
+{
+  "board": "Radxa ROCK 5A",
+  "cases": {
+    "A": {
+      "case": "A",
+      "cpu_node_core_percent": {
+        "colorize": 13.212,
+        "enhancer": 5.155,
+        "filter": 44.364,
+        "merge": 6.551
+      },
+      "cpu_pipeline_core_percent": 115.18,
+      "cpu_system_percent": 43.1,
+      "dropped_batches": 0,
+      "enhancement_effective_states": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "enhancement_requested": false,
+      "expected_batches": 103,
+      "final_mb_per_message": 0.647,
+      "final_mb_per_second": 6.511,
+      "input_frames": 104,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 7.689,
+          "p95_ms": 15.861,
+          "samples": 104
+        },
+        "filter": {
+          "median_ms": 42.13,
+          "p95_ms": 51.461,
+          "samples": 103
+        },
+        "merge": {
+          "median_ms": 6.108,
+          "p95_ms": 9.389,
+          "samples": 103
+        },
+        "total": {
+          "median_ms": 56.561,
+          "p95_ms": 67.476,
+          "samples": 103
+        }
+      },
+      "matched_frames": 104,
+      "measurement_seconds": 10.331,
+      "message_counts": {
+        "camera": 361,
+        "filtered": 104,
+        "final": 104,
+        "lidar": 103,
+        "merged": 103,
+        "shifted": 103
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 17965.769,
+        "final": 17965.769,
+        "lidar": 24000,
+        "merged": 24000
+      },
+      "ram_used_mb": 4452.044,
+      "rates_hz": {
+        "camera": 34.943,
+        "filtered": 10.067,
+        "final": 10.067,
+        "lidar": 9.97,
+        "merged": 9.97
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 83.245,
+      "soc_temperature_c_max": 84.076,
+      "stack": 1,
+      "thermal_limited": false,
+      "valid": true,
+      "warmup_seconds": 5
+    },
+    "B": {
+      "case": "B",
+      "cpu_node_core_percent": {
+        "colorize": 13.245,
+        "enhancer": 4.298,
+        "filter": 42.941,
+        "merge": 6.239
+      },
+      "cpu_pipeline_core_percent": 111.911,
+      "cpu_system_percent": 52.589,
+      "dropped_batches": 0,
+      "enhancement_effective_states": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "enhancement_requested": false,
+      "expected_batches": 35,
+      "final_mb_per_message": 1.945,
+      "final_mb_per_second": 6.405,
+      "input_frames": 102,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 25.131,
+          "p95_ms": 42.581,
+          "samples": 34
+        },
+        "filter": {
+          "median_ms": 119.222,
+          "p95_ms": 147.461,
+          "samples": 34
+        },
+        "merge": {
+          "median_ms": 20.55,
+          "p95_ms": 28.472,
+          "samples": 35
+        },
+        "total": {
+          "median_ms": 165.088,
+          "p95_ms": 195.921,
+          "samples": 34
+        }
+      },
+      "matched_frames": 102,
+      "measurement_seconds": 10.323,
+      "message_counts": {
+        "camera": 361,
+        "filtered": 34,
+        "final": 34,
+        "lidar": 103,
+        "merged": 35,
+        "shifted": 103
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 54016.147,
+        "final": 54016.147,
+        "lidar": 24000,
+        "merged": 72000
+      },
+      "ram_used_mb": 4479.504,
+      "rates_hz": {
+        "camera": 34.972,
+        "filtered": 3.294,
+        "final": 3.294,
+        "lidar": 9.978,
+        "merged": 3.391
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 84.353,
+      "soc_temperature_c_max": 85.0,
+      "stack": 3,
+      "thermal_limited": true,
+      "valid": true,
+      "warmup_seconds": 5
+    },
+    "C": {
+      "case": "C",
+      "cpu_node_core_percent": {
+        "colorize": 12.323,
+        "enhancer": 4.715,
+        "filter": 36.939,
+        "merge": 6.113
+      },
+      "cpu_pipeline_core_percent": 108.932,
+      "cpu_system_percent": 47.933,
+      "dropped_batches": 0,
+      "enhancement_effective_states": [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "enhancement_requested": false,
+      "expected_batches": 10,
+      "final_mb_per_message": 6.473,
+      "final_mb_per_second": 6.205,
+      "input_frames": 100,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 56.214,
+          "p95_ms": 82.221,
+          "samples": 10
+        },
+        "filter": {
+          "median_ms": 351.686,
+          "p95_ms": 426.589,
+          "samples": 10
+        },
+        "merge": {
+          "median_ms": 72.042,
+          "p95_ms": 94.833,
+          "samples": 10
+        },
+        "total": {
+          "median_ms": 482.409,
+          "p95_ms": 561.45,
+          "samples": 10
+        }
+      },
+      "matched_frames": 100,
+      "measurement_seconds": 10.431,
+      "message_counts": {
+        "camera": 364,
+        "filtered": 10,
+        "final": 10,
+        "lidar": 104,
+        "merged": 10,
+        "shifted": 104
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 179804.5,
+        "final": 179804.5,
+        "lidar": 24000,
+        "merged": 240000
+      },
+      "ram_used_mb": 4585.998,
+      "rates_hz": {
+        "camera": 34.895,
+        "filtered": 0.959,
+        "final": 0.959,
+        "lidar": 9.97,
+        "merged": 0.959
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 83.707,
+      "soc_temperature_c_max": 84.076,
+      "stack": 10,
+      "thermal_limited": false,
+      "valid": true,
+      "warmup_seconds": 5
+    }
+  },
+  "code_commit": "2131c5a55bec70f4729efeefc2f9a0776eef5ec6",
+  "kernel": "5.10.110-37-rockchip-g74457be0716d",
+  "recorded_utc": "2026-09-25T13:14:01+00:00",
+  "ros_distro": "noetic",
+  "schema_version": 1
+}
