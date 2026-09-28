@@ -1,0 +1,318 @@
+{
+  "board": "Radxa ROCK 5A",
+  "cases": {
+    "A": {
+      "case": "A",
+      "cpu_node_core_percent": {
+        "colorize": 14.765,
+        "enhancer": 5.122,
+        "filter": 48.49,
+        "merge": 7.205
+      },
+      "cpu_pipeline_core_percent": 124.029,
+      "cpu_system_percent": 42.486,
+      "dropped_batches": 0,
+      "enhancement_effective_status_samples": {
+        "off": 58,
+        "on": 0,
+        "unknown": 0
+      },
+      "enhancement_requested": false,
+      "expected_batches": 607,
+      "final_mb_per_message": 0.651,
+      "final_mb_per_second": 6.508,
+      "input_frames": 606,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 10.503,
+          "p95_ms": 17.577,
+          "samples": 602
+        },
+        "filter": {
+          "median_ms": 44.107,
+          "p95_ms": 63.178,
+          "samples": 606
+        },
+        "merge": {
+          "median_ms": 7.839,
+          "p95_ms": 12.55,
+          "samples": 605
+        },
+        "total": {
+          "median_ms": 62.36,
+          "p95_ms": 82.693,
+          "samples": 606
+        }
+      },
+      "matched_frames": 606,
+      "measurement_seconds": 60.653,
+      "message_counts": {
+        "camera": 2122,
+        "filtered": 606,
+        "final": 606,
+        "lidar": 607,
+        "merged": 607,
+        "shifted": 607
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 18093.054,
+        "final": 18093.054,
+        "lidar": 24000,
+        "merged": 24000
+      },
+      "ram_used_mb": 3474.093,
+      "rates_hz": {
+        "camera": 34.986,
+        "filtered": 9.991,
+        "final": 9.991,
+        "lidar": 10.008,
+        "merged": 10.008
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 83.567,
+      "soc_temperature_c_max": 84.076,
+      "stack": 1,
+      "thermal_limited": false,
+      "valid": true,
+      "warmup_seconds": 20
+    },
+    "B": {
+      "case": "B",
+      "cpu_node_core_percent": {
+        "colorize": 14.354,
+        "enhancer": 4.769,
+        "filter": 42.54,
+        "merge": 6.626
+      },
+      "cpu_pipeline_core_percent": 117.394,
+      "cpu_system_percent": 42.972,
+      "dropped_batches": 0,
+      "enhancement_effective_status_samples": {
+        "off": 58,
+        "on": 0,
+        "unknown": 0
+      },
+      "enhancement_requested": false,
+      "expected_batches": 200,
+      "final_mb_per_message": 1.956,
+      "final_mb_per_second": 6.531,
+      "input_frames": 603,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 29.42,
+          "p95_ms": 47.693,
+          "samples": 201
+        },
+        "filter": {
+          "median_ms": 112.794,
+          "p95_ms": 147.555,
+          "samples": 200
+        },
+        "merge": {
+          "median_ms": 23.94,
+          "p95_ms": 33.047,
+          "samples": 200
+        },
+        "total": {
+          "median_ms": 166.763,
+          "p95_ms": 206.291,
+          "samples": 200
+        }
+      },
+      "matched_frames": 603,
+      "measurement_seconds": 60.211,
+      "message_counts": {
+        "camera": 2106,
+        "filtered": 201,
+        "final": 201,
+        "lidar": 602,
+        "merged": 200,
+        "shifted": 602
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 54347.01,
+        "final": 54347.01,
+        "lidar": 24000,
+        "merged": 72000
+      },
+      "ram_used_mb": 3500.357,
+      "rates_hz": {
+        "camera": 34.977,
+        "filtered": 3.338,
+        "final": 3.338,
+        "lidar": 9.998,
+        "merged": 3.322
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 83.678,
+      "soc_temperature_c_max": 85.0,
+      "stack": 3,
+      "thermal_limited": true,
+      "valid": true,
+      "warmup_seconds": 20
+    },
+    "C": {
+      "case": "C",
+      "cpu_node_core_percent": {
+        "colorize": 13.472,
+        "enhancer": 5.86,
+        "filter": 40.118,
+        "merge": 6.999
+      },
+      "cpu_pipeline_core_percent": 122.954,
+      "cpu_system_percent": 36.942,
+      "dropped_batches": 0,
+      "enhancement_effective_status_samples": {
+        "off": 58,
+        "on": 0,
+        "unknown": 0
+      },
+      "enhancement_requested": false,
+      "expected_batches": 60,
+      "final_mb_per_message": 6.521,
+      "final_mb_per_second": 6.572,
+      "input_frames": 610,
+      "invalid_reason": null,
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 63.908,
+          "p95_ms": 97.238,
+          "samples": 61
+        },
+        "filter": {
+          "median_ms": 356.866,
+          "p95_ms": 502.269,
+          "samples": 60
+        },
+        "merge": {
+          "median_ms": 84.115,
+          "p95_ms": 110.042,
+          "samples": 60
+        },
+        "total": {
+          "median_ms": 510.716,
+          "p95_ms": 648.856,
+          "samples": 60
+        }
+      },
+      "matched_frames": 610,
+      "measurement_seconds": 60.531,
+      "message_counts": {
+        "camera": 2117,
+        "filtered": 61,
+        "final": 61,
+        "lidar": 606,
+        "merged": 60,
+        "shifted": 605
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 181150.852,
+        "final": 181150.852,
+        "lidar": 24000,
+        "merged": 240000
+      },
+      "ram_used_mb": 3554.706,
+      "rates_hz": {
+        "camera": 34.974,
+        "filtered": 1.008,
+        "final": 1.008,
+        "lidar": 10.011,
+        "merged": 0.991
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 83.105,
+      "soc_temperature_c_max": 85.0,
+      "stack": 10,
+      "thermal_limited": true,
+      "valid": true,
+      "warmup_seconds": 20
+    },
+    "D": {
+      "case": "D",
+      "cpu_node_core_percent": {
+        "colorize": 7.1,
+        "enhancer": 88.087,
+        "filter": 35.919,
+        "merge": 5.308
+      },
+      "cpu_pipeline_core_percent": 180.691,
+      "cpu_system_percent": 52.32,
+      "dropped_batches": 0,
+      "enhancement_effective_status_samples": {
+        "off": 0,
+        "on": 16,
+        "unknown": 0
+      },
+      "enhancement_requested": true,
+      "expected_batches": 16,
+      "final_mb_per_message": 3.038,
+      "final_mb_per_second": 3.085,
+      "input_frames": 160,
+      "invalid_reason": "SoC temperature reached 81.3 C",
+      "latency_ms_observer": {
+        "colorize": {
+          "median_ms": 40.967,
+          "p95_ms": 57.689,
+          "samples": 10
+        },
+        "filter": {
+          "median_ms": 330.038,
+          "p95_ms": 431.094,
+          "samples": 16
+        },
+        "merge": {
+          "median_ms": 59.742,
+          "p95_ms": 80.465,
+          "samples": 16
+        },
+        "total": {
+          "median_ms": 445.296,
+          "p95_ms": 593.468,
+          "samples": 16
+        }
+      },
+      "matched_frames": 75,
+      "measurement_seconds": 15.757,
+      "message_counts": {
+        "camera": 551,
+        "filtered": 16,
+        "final": 16,
+        "lidar": 158,
+        "merged": 16,
+        "shifted": 158
+      },
+      "negative_latency_pairs": {},
+      "points_per_message": {
+        "filtered": 180014.812,
+        "final": 84384.75,
+        "lidar": 24000,
+        "merged": 240000
+      },
+      "ram_used_mb": 3609.026,
+      "rates_hz": {
+        "camera": 34.968,
+        "filtered": 1.015,
+        "final": 1.015,
+        "lidar": 10.027,
+        "merged": 1.015
+      },
+      "schema_version": 1,
+      "soc_temperature_c_avg": 76.634,
+      "soc_temperature_c_max": 81.307,
+      "stack": 10,
+      "thermal_limited": false,
+      "valid": false,
+      "warmup_seconds": 20
+    }
+  },
+  "code_commit": "d5579b5b957323a6853fe1044e221504433b3a8f",
+  "kernel": "5.10.110-37-rockchip-g74457be0716d",
+  "recorded_utc": "2026-09-28T07:21:00+00:00",
+  "ros_distro": "noetic",
+  "schema_version": 1
+}

@@ -16,6 +16,12 @@ def main():
     cases = {}
     for path in map(Path, sys.argv[2:]):
         item = json.loads(path.read_text(encoding="utf-8"))
+        states = item.pop("enhancement_effective_states", [])
+        item["enhancement_effective_status_samples"] = {
+            "on": sum(state is True for state in states),
+            "off": sum(state is False for state in states),
+            "unknown": sum(state is None for state in states),
+        }
         cases[item["case"]] = item
     try:
         board = Path("/proc/device-tree/model").read_bytes().rstrip(b"\0").decode()

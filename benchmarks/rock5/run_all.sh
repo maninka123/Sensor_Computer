@@ -12,9 +12,10 @@ START_TEMPERATURE=70
 ENHANCED_FIRST=false
 SKIP_ENHANCEMENT=false
 SKIP_STABILITY=false
+ONLY_CASE=""
 
 usage() {
-  echo "Usage: $0 [--duration SECONDS] [--warmup SECONDS] [--stability-seconds SECONDS] [--start-temperature CELSIUS] [--max-temperature CELSIUS] [--enhanced-first] [--skip-enhancement] [--skip-stability] [--output FILE]"
+  echo "Usage: $0 [--duration SECONDS] [--warmup SECONDS] [--stability-seconds SECONDS] [--start-temperature CELSIUS] [--max-temperature CELSIUS] [--enhanced-first] [--skip-enhancement] [--skip-stability] [--only-case A|B|C|D|C_stability] [--output FILE]"
 }
 while (( $# )); do
   case "$1" in
@@ -25,12 +26,25 @@ while (( $# )); do
     --enhanced-first) ENHANCED_FIRST=true; shift ;;
     --skip-enhancement) SKIP_ENHANCEMENT=true; shift ;;
     --skip-stability) SKIP_STABILITY=true; shift ;;
+    --only-case) ONLY_CASE="$2"; shift 2 ;;
     --max-temperature) MAX_TEMPERATURE="$2"; shift 2 ;;
     --output) OUTPUT="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
 done
+if [[ -n "$ONLY_CASE" && ! "$ONLY_CASE" =~ ^(A|B|C|D|C_stability)$ ]]; then
+  echo "--only-case must be A, B, C, D, or C_stability" >&2
+  exit 2
+fi
+if [[ "$ONLY_CASE" == D && "$SKIP_ENHANCEMENT" == true ]]; then
+  echo "--only-case D conflicts with --skip-enhancement" >&2
+  exit 2
+fi
+if [[ "$ONLY_CASE" == C_stability && "$SKIP_STABILITY" == true ]]; then
+  echo "--only-case C_stability conflicts with --skip-stability" >&2
+  exit 2
+fi
 for value in "$SHORT_SECONDS" "$WARMUP_SECONDS" "$STABILITY_SECONDS"; do
   [[ "$value" =~ ^[0-9]+$ ]] || { echo "Durations must be non-negative integer seconds" >&2; exit 2; }
 done
@@ -41,7 +55,7 @@ if ! /usr/bin/python3 -c 'import sys; value=float(sys.argv[1]); raise SystemExit
   echo "Maximum temperature must be greater than 0 and no higher than 90 C" >&2
   exit 2
 fi
-if [[ "$SKIP_ENHANCEMENT" != true ]] && /usr/bin/python3 -c 'import sys; raise SystemExit(0 if float(sys.argv[1]) >= 85 else 1)' "$MAX_TEMPERATURE"; then
+if [[ "$SKIP_ENHANCEMENT" != true && ( -z "$ONLY_CASE" || "$ONLY_CASE" == D ) ]] && /usr/bin/python3 -c 'import sys; raise SystemExit(0 if float(sys.argv[1]) >= 85 else 1)' "$MAX_TEMPERATURE"; then
   echo "Enhancement runs must abort below the 85 C thermal cutoff" >&2
   exit 2
 fi
@@ -166,21 +180,31 @@ run_case() {
   sleep 3
 }
 
-if [[ "$ENHANCED_FIRST" == true && "$SKIP_ENHANCEMENT" != true ]]; then
-  run_case D 10 true "$SHORT_SECONDS"
+if [[ -n "$ONLY_CASE" ]]; then
+  case "$ONLY_CASE" in
+    A) run_case A 1 false "$SHORT_SECONDS" ;;
+    B) run_case B 3 false "$SHORT_SECONDS" ;;
+    C) run_case C 10 false "$SHORT_SECONDS" ;;
+    D) run_case D 10 true "$SHORT_SECONDS" ;;
+    C_stability) run_case C_stability 10 false "$STABILITY_SECONDS" ;;
+  esac
+  summary_inputs=("$BENCH_TEMP/$ONLY_CASE.json")
+else
+  if [[ "$ENHANCED_FIRST" == true && "$SKIP_ENHANCEMENT" != true ]]; then
+    run_case D 10 true "$SHORT_SECONDS"
+  fi
+  run_case A 1 false "$SHORT_SECONDS"
+  run_case B 3 false "$SHORT_SECONDS"
+  run_case C 10 false "$SHORT_SECONDS"
+  if [[ "$ENHANCED_FIRST" != true && "$SKIP_ENHANCEMENT" != true ]]; then
+    run_case D 10 true "$SHORT_SECONDS"
+  fi
+  if [[ "$SKIP_STABILITY" != true ]]; then
+    run_case C_stability 10 false "$STABILITY_SECONDS"
+  fi
+  summary_inputs=("$BENCH_TEMP/A.json" "$BENCH_TEMP/B.json" "$BENCH_TEMP/C.json")
+  [[ "$SKIP_ENHANCEMENT" == true ]] || summary_inputs+=("$BENCH_TEMP/D.json")
+  [[ "$SKIP_STABILITY" == true ]] || summary_inputs+=("$BENCH_TEMP/C_stability.json")
 fi
-run_case A 1 false "$SHORT_SECONDS"
-run_case B 3 false "$SHORT_SECONDS"
-run_case C 10 false "$SHORT_SECONDS"
-if [[ "$ENHANCED_FIRST" != true && "$SKIP_ENHANCEMENT" != true ]]; then
-  run_case D 10 true "$SHORT_SECONDS"
-fi
-if [[ "$SKIP_STABILITY" != true ]]; then
-  run_case C_stability 10 false "$STABILITY_SECONDS"
-fi
-
-summary_inputs=("$BENCH_TEMP/A.json" "$BENCH_TEMP/B.json" "$BENCH_TEMP/C.json")
-[[ "$SKIP_ENHANCEMENT" == true ]] || summary_inputs+=("$BENCH_TEMP/D.json")
-[[ "$SKIP_STABILITY" == true ]] || summary_inputs+=("$BENCH_TEMP/C_stability.json")
 /usr/bin/python3 "$BENCH_DIR/combine.py" "$OUTPUT" "${summary_inputs[@]}"
 echo "[benchmark] Compact result: $OUTPUT"
