@@ -1,4 +1,6 @@
-numpy>=1.23,<3
+numpy>=1.23,<2
 Pillow>=9,<13
-onnxruntime>=1.18,<2
-torch>=2.5,<3
+onnxruntime>=1.16,<1.17; python_version < "3.9"
+onnxruntime>=1.18,<2; python_version >= "3.9"
+torch>=2.4,<2.5; python_version < "3.9"
+torch>=2.5,<3; python_version >= "3.9"

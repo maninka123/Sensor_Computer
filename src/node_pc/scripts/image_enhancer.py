@@ -29,7 +29,7 @@ if (
     inference_python.is_file()
     and os.access(str(inference_python), os.X_OK)
     and os.environ.get("_NODE_PC_INFERENCE_REEXEC") != "1"
-    and Path(sys.executable).resolve() != inference_python.resolve()
+    and Path(sys.executable).absolute() != inference_python.absolute()
 ):
     os.environ["_NODE_PC_INFERENCE_REEXEC"] = "1"
     os.execv(str(inference_python), [str(inference_python), str(Path(__file__).resolve())] + sys.argv[1:])
