@@ -5,11 +5,24 @@ SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WS_DIR="$SCRIPT_DIR"
 NETWORK_CONFIG="${NODE_PC_NETWORK_CONFIG:-$WS_DIR/src/node_pc/config/network.env}"
 
-# PyTorch 1.12 on this ARM board otherwise fails with "cannot allocate memory
-# in static TLS block" when ROS loads other shared libraries first.
-SYSTEM_GOMP=/usr/lib/aarch64-linux-gnu/libgomp.so.1
-if [[ -r "$SYSTEM_GOMP" && ":${LD_PRELOAD:-}:" != *":$SYSTEM_GOMP:"* ]]; then
-  export LD_PRELOAD="$SYSTEM_GOMP${LD_PRELOAD:+:$LD_PRELOAD}"
+# On ARM64, ROS imports can exhaust static TLS before PyTorch loads its
+# bundled OpenMP library. Preload the library from the installed wheel.
+# LD_PRELOAD cannot parse a path with spaces, so use a link in .deps/.
+TORCH_GOMP_LINK="$WS_DIR/.deps/libgomp-torch.so.1"
+if [[ ! -e "$TORCH_GOMP_LINK" ]]; then
+  for library in "$WS_DIR"/src/node_pc/scripts/'SBC inference'/.venv/lib/python*/site-packages/torch.libs/libgomp-*.so*; do
+    if [[ -f "$library" ]]; then
+      ln -sfn "$library" "$TORCH_GOMP_LINK"
+      break
+    fi
+  done
+fi
+GOMP_PRELOAD="$TORCH_GOMP_LINK"
+if [[ ! -r "$GOMP_PRELOAD" ]]; then
+  GOMP_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+fi
+if [[ -r "$GOMP_PRELOAD" && ":${LD_PRELOAD:-}:" != *":$GOMP_PRELOAD:"* ]]; then
+  export LD_PRELOAD="$GOMP_PRELOAD${LD_PRELOAD:+:$LD_PRELOAD}"
 fi
 
 if [ ! -r "$NETWORK_CONFIG" ]; then
@@ -111,8 +124,12 @@ echo "  - rosbridge=true: also start rosbridge and the TF web republisher"
 # so both old and newly installed service units recover from child-node exits.
 shutdown_requested=false
 child_pid=""
+watchdog_pid=""
 request_shutdown() {
   shutdown_requested=true
+  if [[ -n "$watchdog_pid" ]]; then
+    kill -TERM "$watchdog_pid" 2>/dev/null || true
+  fi
   if [[ -n "$child_pid" ]]; then
     kill -INT "$child_pid" 2>/dev/null || true
   fi
@@ -131,8 +148,17 @@ while true; do
     ros_master_uri:="${ROS_MASTER_URI}" \
     "$@" &
   child_pid=$!
+  if [[ "$ROSBAG_MODE" == false && "${PIPELINE_WATCHDOG_ENABLED:-true}" == true ]]; then
+    "$WS_DIR/scripts/watch_pipeline_streams.sh" "$child_pid" &
+    watchdog_pid=$!
+  fi
   wait "$child_pid"
   launch_status=$?
+  if [[ -n "$watchdog_pid" ]]; then
+    kill -TERM "$watchdog_pid" 2>/dev/null || true
+    wait "$watchdog_pid" 2>/dev/null || true
+    watchdog_pid=""
+  fi
   set -e
   child_pid=""
 

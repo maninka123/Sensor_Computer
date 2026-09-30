@@ -30,7 +30,7 @@ class RateTracker:
 
     def tick(self, stamp):
         t = stamp.to_sec()
-        now = time.time()
+        now = time.monotonic()
         with self.lock:
             self.window.append((t, now))
             self.last_wall = now
@@ -42,9 +42,13 @@ class RateTracker:
 
     def hz(self):
         with self.lock:
+            now = time.monotonic()
+            cutoff = now - self.window_sec
+            while self.window and self.window[0][1] < cutoff:
+                self.window.popleft()
             if len(self.window) < 2:
                 return 0.0
-            # Use wall clock time for Hz calculation (more stable)
+            # Use elapsed time for Hz calculation, not sensor timestamps.
             dt = self.window[-1][1] - self.window[0][1]
             return (len(self.window) - 1) / dt if dt > 0 else 0.0
 
@@ -52,7 +56,7 @@ class RateTracker:
         with self.lock:
             if self.last_wall is None:
                 return True
-            return (time.time() - self.last_wall) > max_gap
+            return (time.monotonic() - self.last_wall) > max_gap
 
     def get_last_stamp(self):
         with self.lock:
@@ -83,6 +87,7 @@ class TopicMonitor:
             )
         )
         self.last_node_check = 0.0
+        self.restart_required = False
         self.enhancement_topic = rospy.get_param(
             "~image_enchantment_topic", "/image_enhancement/status"
         )
@@ -209,7 +214,14 @@ class TopicMonitor:
             return
         self.last_node_check = now
         try:
-            self.rosbridge_running = "/rosbridge_websocket" in rosnode.get_node_names()
+            registered_nodes = rosnode.get_node_names()
+            if rospy.get_name() not in registered_nodes:
+                # ROS 1 clients do not reliably re-register after roscore
+                # restarts. Let monitor_pipeline.sh create a fresh node.
+                self.restart_required = True
+                rospy.signal_shutdown("ROS master restarted; reconnecting monitor")
+                return
+            self.rosbridge_running = "/rosbridge_websocket" in registered_nodes
         except Exception:
             self.rosbridge_running = False
         try:
@@ -398,7 +410,9 @@ class TopicMonitor:
 
 if __name__ == "__main__":
     try:
-        TopicMonitor()
+        monitor = TopicMonitor()
         rospy.spin()
+        if monitor.restart_required:
+            sys.exit(75)
     except rospy.ROSInterruptException:
         pass

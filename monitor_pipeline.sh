@@ -19,4 +19,16 @@ set -a
 source "$NETWORK_CONFIG"
 set +a
 
-exec rosrun node_pc monitor_status.py "$@"
+# rosrun exits with 75 when roscore restarts. Create a new ROS node so its
+# subscriptions register with the new master; Ctrl-C and other exits stop.
+while true; do
+  set +e
+  rosrun node_pc monitor_status.py "$@"
+  monitor_status=$?
+  set -e
+  if (( monitor_status != 75 )); then
+    exit "$monitor_status"
+  fi
+  echo "[monitor] ROS master changed; reconnecting in 2 seconds..." >&2
+  sleep 2
+done

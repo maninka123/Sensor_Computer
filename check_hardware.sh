@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eo pipefail
 
 WS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source /opt/ros/noetic/setup.bash
 [[ -r "$WS_DIR/devel/setup.bash" ]] && source "$WS_DIR/devel/setup.bash"
 [[ -r "$WS_DIR/src/node_pc/config/network.env" ]] && source "$WS_DIR/src/node_pc/config/network.env"
+set -u
 
 echo "Architecture: $(uname -m)"
 echo "ROS: ${ROS_DISTRO:-not sourced}"
