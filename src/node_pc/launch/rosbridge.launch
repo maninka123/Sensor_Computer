@@ -3,9 +3,9 @@
   <arg name="port" default="$(optenv ROSBRIDGE_PORT 9090)" />
 
   <node pkg="tf2_web_republisher" type="tf2_web_republisher"
-        name="tf2_web_republisher" output="screen" />
+        name="tf2_web_republisher" output="screen" respawn="true" respawn_delay="5.0" />
   <node pkg="rosbridge_server" type="rosbridge_websocket"
-        name="rosbridge_websocket" output="screen">
+        name="rosbridge_websocket" output="screen" respawn="true" respawn_delay="5.0">
     <param name="address" value="$(arg address)" />
     <param name="port" value="$(arg port)" />
   </node>

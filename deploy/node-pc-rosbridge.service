@@ -12,7 +12,9 @@ EnvironmentFile=/home/rock/catkin_ws_actual/src/node_pc/config/network.env
 Environment="NODE_PC_NETWORK_CONFIG=/home/rock/catkin_ws_actual/src/node_pc/config/network.env"
 Environment="PYTHONUNBUFFERED=1"
 ExecStart=/home/rock/catkin_ws_actual/run_rosbridge.sh
-Restart=on-failure
+# A clean roslaunch exit is still a lost fallback transport. An intentional
+# systemctl stop by the native-transport supervisor does not trigger restart.
+Restart=always
 RestartSec=5
 TimeoutStartSec=120
 TimeoutStopSec=20
