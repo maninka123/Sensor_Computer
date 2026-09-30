@@ -8,16 +8,20 @@ source /opt/ros/noetic/setup.bash
 
 echo "Architecture: $(uname -m)"
 echo "ROS: ${ROS_DISTRO:-not sourced}"
-echo "Spinnaker: $(dpkg-query -W -f='${Version}' libspinnaker 2>/dev/null || echo missing)"
+spinnaker_version="$(dpkg-query -W -f='${Version}' libspinnaker 2>/dev/null || echo missing)"
+echo "Spinnaker: $spinnaker_version (workspace expects 4.2.0.46)"
+if [[ "$spinnaker_version" != 4.2.0.46 ]]; then
+  echo "WARNING: install Spinnaker 4.2.0.46 before building; see Camera_SDK/README.md" >&2
+fi
 echo "Livox driver: $(rospack find livox_ros_driver 2>/dev/null || echo missing)"
 echo "FLIR driver: $(rospack find spinnaker_camera_driver 2>/dev/null || echo missing)"
 echo "USB buffer: $(cat /sys/module/usbcore/parameters/usbfs_memory_mb 2>/dev/null || echo unavailable) MB"
 echo "Network interfaces:"
 ip -br address
-if [[ -n "${ROS_IP:-}" ]] && ! ip -4 -o address show | rg -q "[[:space:]]${ROS_IP}/"; then
+if [[ -n "${ROS_IP:-}" ]] && ! ip -4 -o address show | grep -Eq "[[:space:]]${ROS_IP}/"; then
   echo "WARNING: configured ROS_IP $ROS_IP is not assigned to this computer" >&2
 fi
-if [[ -n "${LIVOX_HOST_IP:-}" ]] && ! ip -4 -o address show | rg -q "[[:space:]]${LIVOX_HOST_IP}/"; then
+if [[ -n "${LIVOX_HOST_IP:-}" ]] && ! ip -4 -o address show | grep -Eq "[[:space:]]${LIVOX_HOST_IP}/"; then
   echo "WARNING: configured LIVOX_HOST_IP $LIVOX_HOST_IP is not assigned to this computer" >&2
 fi
 echo "USB devices:"
@@ -44,7 +48,7 @@ if command -v timeout >/dev/null && [[ -x /opt/spinnaker/bin/GigEConfig ]] \
   camera_info="$(timeout 10 /opt/spinnaker/bin/GigEConfig -s "$FLIR_CAMERA_SERIAL" 2>&1 || true)"
   printf '%s\n' "$camera_info"
   if [[ -n "${FLIR_CAMERA_IP:-}" ]] \
-     && ! printf '%s\n' "$camera_info" | rg -q "GevDeviceIPAddress : ${FLIR_CAMERA_IP}$"; then
+     && ! printf '%s\n' "$camera_info" | grep -Fqx "GevDeviceIPAddress : ${FLIR_CAMERA_IP}"; then
     echo "WARNING: FLIR camera $FLIR_CAMERA_SERIAL is not using expected IP $FLIR_CAMERA_IP" >&2
   fi
 fi

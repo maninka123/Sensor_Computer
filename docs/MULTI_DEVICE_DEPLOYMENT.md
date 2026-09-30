@@ -61,24 +61,12 @@ rosdep update
 rosdep install --from-paths src --ignore-src -r -y
 ```
 
-Install the Spinnaker SDK matching the computer architecture before building.
-Never install an AMD64 package on an ARM64 computer.
-
-For AMD64 Ubuntu 20.04:
-
-```bash
-cd ~/catkin_ws_actual/Camera_SDK/spinnaker-4.2.0.88-amd64
-sudo ./install_spinnaker.sh
-```
-
-For ARM64 Ubuntu 20.04:
-
-```bash
-cd /tmp
-tar -xzf ~/catkin_ws_actual/Camera_SDK/spinnaker-4.2.0.88-arm64-20.04-pkg.tar.gz
-cd spinnaker-4.2.0.88-arm64
-sudo ./install_spinnaker_arm.sh
-```
+Install **Spinnaker 4.2.0.46** matching the computer's architecture before
+building. Vendor SDK packages are not stored in this repository; download them
+from Teledyne under its licence. The [SDK setup instructions](../Camera_SDK/README.md)
+give the tested ROCK 5A ARM64 archive name, checksum, and installation commands.
+For an AMD64 sensor computer, use Teledyne's 4.2.0.46 AMD64 package and its
+included installer. Never install an AMD64 package on an ARM64 computer.
 
 Build the pinned Livox SDK and complete catkin workspace:
 

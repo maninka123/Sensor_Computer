@@ -20,17 +20,12 @@ catkin_package(CATKIN_DEPENDS
 )
 
 
-# If Spinnacker is already present, use the found version. If not, download it.
-# We can't resolve this dependency using the usual rosdep means because
-# the Point Grey EULA prohibits redistributing the headers or the packages which
-# contains them. We work around this by downloading the archive directly from
-# their website during this step in the build process.
+# Spinnaker must be installed separately from Teledyne's official package.
+# Do not silently download an older SDK or bundle its proprietary libraries.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 find_package(Spinnaker QUIET)
 if(NOT Spinnaker_FOUND)
-  message(STATUS "libSpinnaker not found in system library path")
-  include(cmake/DownloadSpinnaker.cmake)
-  download_spinnaker(Spinnaker_LIBRARIES Spinnaker_INCLUDE_DIRS)
+  message(FATAL_ERROR "Spinnaker SDK not found. Install 4.2.0.46 for this workspace before building; see Camera_SDK/README.md")
 endif()
 
 message(STATUS "libSpinnaker library: ${Spinnaker_LIBRARIES}")
@@ -100,19 +95,6 @@ install(TARGETS
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-
-# Redistributing the flycapture .so file is permitted by the SDK EULA:
-# http://www.ptgrey.com/support/kb/data/PGR-FlyCap-SDK-LA.pdf
-if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/usr/lib)
-  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/usr/lib/ DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-           PATTERN libQt* EXCLUDE)
-else()
-  get_filename_component(Spinnaker_LIB_DIR ${Spinnaker_LIBRARIES} DIRECTORY)
-  file(READ ${PROJECT_SOURCE_DIR}/cmake/install_files filenames)
-  foreach(filename ${filenames})
-    install(FILES ${Spinnaker_LIB_DIR}/${filename} DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
-  endforeach()
-endif()
 
 install(FILES nodelet_plugins.xml DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION} )
 

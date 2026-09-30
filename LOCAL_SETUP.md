@@ -4,8 +4,10 @@ For several sensor computers sharing one switch and Surface PC, see
 [Multiple sensor computers connected to one Surface PC](docs/MULTI_DEVICE_DEPLOYMENT.md).
 
 This workspace is configured for Ubuntu 20.04 ARM64, ROS Noetic, one FLIR
-GigE camera, and one Livox Avia. The Spinnaker ARM64 SDK is already installed
-in `/opt/spinnaker`; do not install the AMD64 archive under `Camera_SDK`.
+GigE camera, and one Livox Avia. This ROCK 5A runs **Spinnaker 4.2.0.46
+ARM64** from `/opt/spinnaker`. On a new computer, download and install the
+matching architecture/version from Teledyne first; follow
+[Camera_SDK/README.md](Camera_SDK/README.md). Vendor SDK packages are not in Git.
 
 ## Build
 
@@ -15,9 +17,10 @@ cd ~/catkin_ws_actual
 source devel/setup.bash
 ```
 
-`setup_workspace.sh` builds the original Livox-SDK at the pinned compatible
-revision into `.deps/`, then builds the complete catkin workspace. It does not
-write into `/usr/local` and does not need sudo.
+`setup_workspace.sh` checks that Spinnaker 4.2.0.46 and its development headers
+are installed, builds the original Livox-SDK at the pinned compatible revision
+into `.deps/`, then builds the complete catkin workspace. It does not write
+into `/usr/local` and does not need sudo.
 
 ## Hardware and network values
 

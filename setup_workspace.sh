@@ -3,6 +3,7 @@ set -euo pipefail
 
 WS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROS_SETUP=/opt/ros/noetic/setup.bash
+SPINNAKER_EXPECTED_VERSION=4.2.0.46
 SDK_SOURCE="$WS_DIR/.deps/Livox-SDK"
 SDK_BUILD="$WS_DIR/.deps/livox-sdk-build"
 SDK_INSTALL="$WS_DIR/.deps/livox-sdk-install"
@@ -10,6 +11,19 @@ SDK_COMMIT=9306596a2bf15c1343bc023b497465ed0a32909d
 
 if [[ ! -r "$ROS_SETUP" ]]; then
   echo "ERROR: ROS Noetic is not installed at $ROS_SETUP" >&2
+  exit 1
+fi
+
+for package in libspinnaker libspinnaker-dev; do
+  installed_version="$(dpkg-query -W -f='${Version}' "$package" 2>/dev/null || true)"
+  if [[ "$installed_version" != "$SPINNAKER_EXPECTED_VERSION" ]]; then
+    echo "ERROR: $package ${SPINNAKER_EXPECTED_VERSION} is required; found ${installed_version:-missing}." >&2
+    echo "Install the matching SDK for this computer from Teledyne; see Camera_SDK/README.md." >&2
+    exit 1
+  fi
+done
+if [[ ! -r /opt/spinnaker/include/Spinnaker.h || ! -e /opt/spinnaker/lib/libSpinnaker.so ]]; then
+  echo "ERROR: Spinnaker headers or library are missing from /opt/spinnaker." >&2
   exit 1
 fi
 

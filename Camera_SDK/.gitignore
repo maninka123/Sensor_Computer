@@ -1,0 +1,3 @@
+# Vendor SDK packages are downloaded and installed separately under their licence.
+*.tar.gz
+spinnaker-*/

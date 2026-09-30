@@ -1,8 +1,9 @@
 # Sensor Computer Software
 
-> Prerequisites: install the [Spinnaker SDK](https://www.teledynevisionsolutions.com/en-au/products/spinnaker-sdk/?model=Spinnaker%20SDK&vertical=machine%20vision&segment=iis)
-> for the FLIR camera and the [Livox SDK](https://github.com/Livox-SDK/Livox-SDK)
-> for the LiDAR before building the workspace. See [LOCAL_SETUP.md](LOCAL_SETUP.md).
+> Prerequisites: install [Spinnaker SDK 4.2.0.46](Camera_SDK/README.md)
+> for the FLIR camera before building the workspace. The build script obtains
+> the pinned [Livox SDK](https://github.com/Livox-SDK/Livox-SDK) separately.
+> See [LOCAL_SETUP.md](LOCAL_SETUP.md).
 
 ## System description
 
@@ -32,7 +33,8 @@ For a reproducible A–D live-hardware comparison on ROCK 5, see the
 ## Install
 
 Use [LOCAL_SETUP.md](LOCAL_SETUP.md) for a new Ubuntu 20.04 / ROS Noetic
-computer. It covers Spinnaker, Livox, workspace build, and inference runtime.
+computer. It covers the exact Spinnaker version, Livox, workspace build, and
+inference runtime. Vendor SDK binaries are not distributed in this repository.
 
 ## Run
 
