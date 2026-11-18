@@ -5,15 +5,16 @@ Install once on each sensor PC; Windows is not needed at boot.
 For a compatible ROCK 5A, Device 5's tested profile is:
 
 ```bash
-python3 scripts/cpu_ceiling.py probe --maximum-khz 1008000 --policies policy4 policy6
-sudo python3 scripts/cpu_ceiling.py install --maximum-khz 1008000 --policies policy4 policy6
+python3 scripts/cpu_ceiling.py probe
+sudo python3 scripts/cpu_ceiling.py install
 systemctl is-enabled cmp-cpu-ceiling.service
 systemctl status cmp-cpu-ceiling.service
 ```
 
-Choose each board's actual policy names and an advertised frequency in kHz.
-The probe rejects unsupported frequencies and incompatible minimums before any
-write. Other hardware needs its own load/temperature test.
+The default is the tested 1.008 GHz ceiling on policies 4 and 6: no frequency
+selection is needed. Use the same profile on compatible ROCK 5A boards. The
+probe rejects unsupported hardware and incompatible minimums before any write.
+Only Device 5 has completed the load/temperature trial.
 
 The installer adds `/usr/local/lib/cmp-cpu-profile/cpu_ceiling.py` and
 `cmp-cpu-ceiling.service`. It runs after CPU initialization and before
