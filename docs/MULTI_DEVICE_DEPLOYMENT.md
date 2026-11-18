@@ -193,6 +193,9 @@ camera, reapplies its configuration, and resumes `/camera/image_raw`.
 For unattended startup, review and install `deploy/node-pc.service`; each
 clone's `network.env` supplies that unit's addresses.
 
+For an optional reboot-persistent CPU ceiling, see [CPU ceiling setup](CPU_CEILING.md).
+Install and validate the profile separately on each physical sensor PC.
+
 ## Connect one server to several units
 
 Configure the server Ethernet interface once:
