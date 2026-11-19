@@ -1,43 +1,43 @@
 # Persistent CPU ceiling
 
-Install once on each sensor PC; Windows is not needed at boot.
+Run on **each compatible sensor PC**, from its **Sensor_Computer** folder.
+The tested CPU layout is ROCK 5A; the read-only probe rejects unsupported settings.
 
-For a compatible ROCK 5A, Device 5's tested profile is:
+## Install
 
 ```bash
 python3 scripts/cpu_ceiling.py probe
 sudo python3 scripts/cpu_ceiling.py install
-systemctl is-enabled cmp-cpu-ceiling.service
-systemctl status cmp-cpu-ceiling.service
 ```
 
-The default is the tested 1.008 GHz ceiling on policies 4 and 6: no frequency
-selection is needed. Use the same profile on compatible ROCK 5A boards. The
-probe rejects unsupported hardware and incompatible minimums before any write.
-Only Device 5 has completed the load/temperature trial.
+Sets a **1.008 GHz maximum** for the four big cores (`policy4`/`policy6`).
+`cmp-cpu-ceiling.service` reapplies it before acquisition at boot, without Windows.
+Clocks can scale lower; cooling governors, minimums and thermal protection are preserved.
 
-The installer adds `/usr/local/lib/cmp-cpu-profile/cpu_ceiling.py` and
-`cmp-cpu-ceiling.service`. It runs after CPU initialization and before
-`node-pc.service`. It does not restart acquisition or edit ROS, camera, LiDAR
-or network configuration.
+## Device 5 results
 
-Only maximum frequency requests change. Governors, minimums, other policies
-and kernel thermal protection stay in place. On Device 5, the four big cores
-scale up to 1.008 GHz normally; governor-only cooling can select powersave
-within the same limits. This is a ceiling, not a fixed clock.
+| Measurement | Before: 408/600 MHz, ~2 min | 1.008 GHz, 15 min |
+|---|---:|---:|
+| Point-cloud FPS | 0.910 | **1.000** |
+| Data rate | 36.34 Mb/s | **41.20 Mb/s** |
+| Mean receive latency | 2.87 s | **2.11 s** |
+| Zero-FPS samples | 1 / 23 | **0 / 172** |
 
-Device 5 completed 15 minutes at approximately 1 FPS, 41.2 Mb/s and 2.11 s
-mean receive latency, with no recorded zero-FPS samples, reconnects, fusion-drop
-warnings or watchdog relaunches. Sampled temperature peaked at 83.2 °C.
-The service is installed/enabled; an actual reboot check is pending.
+Sampled peak: **83.2 Â°C**. Restoring the old limits brought back dropouts
+(5 / 31 samples). These sequential, unequal-duration tests cover Device 5 only;
+check streaming and temperature on every device. Its actual reboot check is pending.
 
-After reboot, inspect `/sys/devices/system/cpu/cpufreq/policy{4,6}/scaling_max_freq`;
-expect 1008000 or a lower effective thermal limit. Check the service journal
-with `journalctl -u cmp-cpu-ceiling.service -b`.
-The separate 3 h/10 min cooling schedule still needs re-enabling after reboot.
+## Check after reboot
 
-Disable future application with `sudo systemctl disable --now cmp-cpu-ceiling.service`,
-then reboot to restore the board's normal startup settings. Disabling alone
-does not raise live ceilings.
+```bash
+systemctl is-active cmp-cpu-ceiling.service
+cat /sys/devices/system/cpu/cpufreq/policy{4,6}/scaling_max_freq
+```
 
-Tests: `python3 -B -m unittest discover -s tests -p test_cpu_ceiling.py`.
+Expect `active` and `1008000` kHz, or a lower thermal limit.
+Re-enable the separate 3 h/10 min cooling schedule after reboot.
+
+**Undo:** `sudo systemctl disable --now cmp-cpu-ceiling.service`, then reboot
+during planned downtime. Disabling alone leaves the live ceilings in place.
+
+**Code:** [installer](../scripts/cpu_ceiling.py) Â· [tests](../tests/test_cpu_ceiling.py).
