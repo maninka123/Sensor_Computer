@@ -259,3 +259,7 @@ avoids decoding large payloads where possible, so its CPU overhead is small.
 ## License
 
 Proprietary and confidential. Copyright (c) 2026 UNSW. See [LICENSE](LICENSE).
+
+## UNSW collection
+
+Pushes to personal `master` automatically update `Sensor_Computer/` in the [UNSW AMT collection](https://github.com/unsw-edu-au/AMT-project). See [repository sync and existing working folders](docs/amt-repository-sync.md).
