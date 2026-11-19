@@ -198,6 +198,8 @@ Install and validate the profile separately on each physical sensor PC.
 
 For bounded logs, camera receive headroom and optional VS Code removal, see [sensor maintenance](MAINTENANCE.md).
 
+For the measured Device 5 gamma setting and a reversible camera-only comparison, see [camera brightness](CAMERA_BRIGHTNESS.md). Validate it under each rig's own lighting.
+
 ## Connect one server to several units
 
 Configure the server Ethernet interface once:
