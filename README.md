@@ -252,6 +252,10 @@ Open a terminal and run the monitor only when needed. Stop only the monitor with
 `Ctrl+C`; the pipeline continues running. The monitor uses queue size 1 and
 avoids decoding large payloads where possible, so its CPU overhead is small.
 
+## Long-term test results
+
+24-hour continuous streaming test: [results, key numbers and plots](docs/long_term_24h_test/README.md).
+
 ## Raw vs enhanced image
 
 ![Raw vs Enhanced](Images/Raw_vs_Enchanced.jpeg)
